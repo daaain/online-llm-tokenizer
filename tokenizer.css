@@ -1,0 +1,165 @@
+body {
+  margin: 0 auto;
+  padding: 1em;
+  font-family: Helvetica, Arial, sans-serif;
+  font-weight: 300;
+  color: #3c3c43;
+}
+@media (prefers-color-scheme: dark) {
+  body,
+  textarea {
+    color: #cde6f5;
+    background-color: #3c3c43;
+  }
+  a {
+    color: #71a1be;
+  }
+}
+@media (max-width: 640px) {
+  h1 img {
+    display: none;
+  }
+}
+h1 {
+  display: flex;
+  justify-content: space-around;
+}
+h1 img,
+h2 img {
+  width: 1em;
+  height: 1em;
+}
+h2 img {
+  translate: 0 0.15em;
+}
+h1 span {
+  height: 0.85em;
+  align-self: center;
+}
+h1,
+h2 {
+  font-weight: 400;
+}
+p {
+  text-align: justify;
+}
+textarea#textInput {
+  width: 100%;
+  box-sizing: border-box;
+  overflow-y: hidden;
+  padding: 0.5em;
+  border: 1px solid #777;
+  border-radius: 7px;
+}
+ul#models {
+  word-wrap: break-word;
+  text-wrap-style: pretty;
+  padding: 0;
+}
+ul#models li {
+  list-style: none;
+  margin: 2em 0;
+  border: 1px solid #bbb;
+  border-radius: 7px;
+  padding: 0.5em 1em 1em 1em;
+  box-shadow: 1px 1px 2px 1px rgba(0, 0, 0, 0.2);
+}
+ul#models li ruby {
+  margin: 0;
+}
+ul#models li rt {
+  font-size: 0.7em;
+  margin-bottom: 0.5em;
+}
+ul#models li rb {
+  font-size: 2em;
+  letter-spacing: 0.05em;
+  font-family: monospace;
+}
+ruby {
+  ruby-position: under;
+}
+details:not([open]) {
+  margin-bottom: 1em;
+}
+.model-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5em;
+}
+.model-header h2 {
+  margin: 0;
+  flex: 1;
+}
+.delete-btn {
+  background: #ff4444;
+  color: white;
+  border: none;
+  padding: 0.3em 0.6em;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8em;
+  transition: background 0.2s;
+}
+.delete-btn:hover {
+  background: #cc0000;
+}
+#addModel {
+  margin: 2em 0;
+  display: flex;
+  gap: 0.5em;
+  align-items: center;
+}
+#addModel input {
+  flex: 1;
+  padding: 0.5em;
+  border: 1px solid #777;
+  border-radius: 4px;
+  font-size: 1em;
+}
+#addModel button {
+  background: #0066cc;
+  color: white;
+  border: none;
+  padding: 0.5em 1em;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1em;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+#addModel button:hover {
+  background: #004499;
+}
+#shareBtn {
+  transition: all 0.2s;
+}
+#shareBtn:hover {
+  background: #004499 !important;
+}
+@media (prefers-color-scheme: dark) {
+  #addModel input {
+    background-color: #2a2a2a;
+    color: #cde6f5;
+    border-color: #555;
+  }
+  .delete-btn {
+    background: #cc3333;
+  }
+  .delete-btn:hover {
+    background: #aa1111;
+  }
+  #addModel button {
+    background: #0055aa;
+  }
+  #addModel button:hover {
+    background: #003377;
+  }
+  #shareBtn {
+    background: #0055aa !important;
+  }
+  #shareBtn:hover {
+    background: #003377 !important;
+  }
+}

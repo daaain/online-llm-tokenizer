@@ -1,0 +1,75 @@
+<!doctype html>
+<html>
+
+<head>
+    <title>LLM Tokenizer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="favicons/token.svg" />
+    <link href="tokenizer.css" rel="stylesheet">
+</head>
+
+<body>
+    <a href="https://www.danieldemmel.me">↩ Back to danieldemmel.me</a>
+    <a href="https://github.com/daaain/online-llm-tokenizer" style="float: right;">🔗 View source on GitHub</a>
+    <h1><img src="favicons/token.svg" alt="Token"><img src="favicons/token.svg" alt="Token"><img
+            src="favicons/token.svg" alt="Token"><span>Online LLM Tokenizer</span><img src="favicons/token.svg"
+            alt="Token"><img src="favicons/token.svg" alt="Token"><img src="favicons/token.svg" alt="Token"></h1>
+    <p>
+        A pure Javascript tokenizer running in your browser that can load <code>tokenizer.json</code> and
+        <code>tokenizer_config.json</code> from any repository on Huggingface. You can use it to count tokens and
+        compare how different large language model vocabularies work. It's also useful for debugging prompt templates.
+    </p>
+
+    <details>
+        <summary><strong>Implementation details</strong></summary>
+        <ul>
+            <li><strong>Parallel model loading:</strong> All tokenizers load simultaneously using <code>Promise.all()</code> instead of sequentially, to improve startup time</li>
+            <li><strong>Progressive rendering:</strong> Models appear and update individually as they finish loading, providing immediate feedback</li>
+            <li><strong>Debounced input processing:</strong> Text changes are debounced by 300ms to prevent excessive re-tokenization during typing</li>
+            <li><strong>Client-side tokenization:</strong> Uses transformers.js for pure browser-based tokenization without server dependencies</li>
+            <li><strong>Ruby annotations:</strong> Tokens are displayed using HTML <code>&lt;ruby&gt;</code> elements with text above and token numbers below</li>
+            <li><strong>Space preservation:</strong> Automatically detects and removes tokenizer space-stripping to accurately show whitespace tokens</li>
+            <li><strong>URL parameter support:</strong> Share configurations via <code>?text=...&models=...</code> for easy collaboration</li>
+            <li><strong>LocalStorage persistence:</strong> Model lists persist across browser sessions with automatic fallback to defaults</li>
+            <li><strong>Memory management:</strong> Models are cached in memory and only loaded once, with cleanup on deletion</li>
+            <li><strong>Dark mode support:</strong> Automatic theme detection with appropriate colour schemes for all UI elements</li>
+        </ul>
+    </details>
+
+    <details>
+        <summary><strong>Usage</strong></summary>
+        <ul>
+            <li><strong>Adding models:</strong> Copy model names from HuggingFace (e.g., from the title of model pages like "microsoft/Phi-3-mini-4k-instruct") and paste into the input field</li>
+            <li><strong>Deleting models:</strong> Click the red "🗑️ Delete" button next to any model. You'll get a confirmation prompt and cannot delete the last model</li>
+            <li><strong>Sharing configurations:</strong> Click the "📋 Share" button to copy a URL containing your current text and model selection</li>
+            <li><strong>URL parameters:</strong> Share specific setups using <code>?text=your%20text&models=model1,model2,model3</code> format</li>
+            <li><strong>Text input:</strong> Type or paste text into the textarea - tokenization happens automatically with a short delay</li>
+            <li><strong>Reading tokens:</strong> Each word/subword piece shows the original text above and the token number below</li>
+            <li><strong>Token colours:</strong> Different background colours help distinguish adjacent tokens, cycling through 10 colours</li>
+            <li><strong>Model comparison:</strong> Compare how different models tokenize the same text - useful for understanding vocabulary differences</li>
+            <li><strong>Keyboard shortcuts:</strong> Press Enter in the "Add model" field to quickly add new tokenizers</li>
+            <li><strong>Error recovery:</strong> Failed models show detailed error messages but don't break the application</li>
+            <li><strong>Mobile usage:</strong> Fully functional on mobile devices with responsive design adaptations</li>
+            <li><strong>Offline capability:</strong> Once models are loaded, tokenization works completely offline</li>
+            <li>If you are wondering why are there so many models under Xenova, it's because they work for HuggingFace and re-upload just the tokenizers, so it's possible to load them without agreeing to model licences.</li>
+        </ul>
+    </details>
+    <div style="position: relative;">
+        <textarea id="textInput" name="textInput" autofocus placeholder="Enter the text you want to tokenize"
+            style="height: 5em;">
+[INST] <<SYS>>
+You are a friendly Llama.
+<</SYS>>
+
+Do you spit at people?[/INST]</textarea>
+        <button id="shareBtn" style="position: absolute; top: 0.5em; right: 0.5em; background: #0066cc; color: white; border: none; padding: 0.3em 0.6em; border-radius: 4px; cursor: pointer; font-size: 0.8em;">📋 Share</button>
+    </div>
+    <ul id="models"></ul>
+    <div id="addModel">
+        <input placeholder="01-ai/Yi-34B" />
+        <button>Add tokenizer from HuggingFace</button>
+    </div>
+</body>
+<script type="module" async src="tokenizer.js"></script>
+
+</html>
