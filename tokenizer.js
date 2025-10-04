@@ -269,7 +269,7 @@ Error: ${model.error}
 
     modelBlockWithTextAndTokens = `
       <div class="model-header">
-        <h2>${modelName} <img src="./favicons/token.svg" alt="Token"> Token count: ${tokens.length}</h2>
+        <h2>${modelName} <img src="favicons/token.svg" alt="Token"> Token count: ${tokens.length}</h2>
         <button class="delete-btn" onclick="removeModel('${modelName}')">🗑️ Delete</button>
       </div>
       ${textFromTokens}
