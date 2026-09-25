@@ -1,3 +1,28 @@
+/* Self-hosted variable fonts (latin subset), SIL OFL 1.1 - see fonts/OFL-*.txt */
+@font-face {
+  font-family: 'Syne';
+  font-style: normal;
+  font-weight: 700 800;
+  font-display: swap;
+  src: url('fonts/syne-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Geist';
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url('fonts/geist-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Geist Mono';
+  font-style: normal;
+  font-weight: 400 500;
+  font-display: swap;
+  src: url('fonts/geist-mono-latin.woff2') format('woff2');
+}
+
 :root {
   --bg: #f6f5f9;
   --card: #ffffff;
