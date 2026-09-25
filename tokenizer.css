@@ -555,15 +555,9 @@ ul#models {
 
 .model-meta {
   display: flex;
-  align-items: flex-start;
+  align-items: baseline;
   gap: 12px;
   flex-shrink: 0;
-}
-
-/* Syne sits high in its line box, so nudge the button up to line its bottom
-   up with the bottom of the digits */
-.model-meta .remove-btn {
-  margin-top: -8px;
 }
 
 /* Each card's remove button hovers in the next colour of the spectrum */
