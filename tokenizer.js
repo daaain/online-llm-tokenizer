@@ -4,6 +4,8 @@ import { AutoTokenizer } from './transformers.js'
 // Constants
 const KEY_MODELS = 'models'
 const DEBOUNCE_DELAY = 300 // ms
+const COPIED_RESET_DELAY = 2000 // ms
+const SKELETON_WIDTHS = [72, 120, 48, 96, 140, 64]
 const COLOURS = [
   'E40303',
   'FF8C00',
@@ -24,6 +26,8 @@ const DEFAULT_MODELS = [
   'Xenova/gemma2-tokenizer',
   'Xenova/claude-tokenizer',
 ]
+const ICON_TRASH =
+  '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"></path></svg>'
 
 let models = []
 let debounceTimer = null
@@ -99,7 +103,7 @@ function addModel(name) {
 /**
  * Remove a model from the list
  */
-window.removeModel = function (modelName) {
+function removeModel(modelName) {
   if (models.length <= 1) {
     alert('Cannot remove the last model')
     return false
@@ -111,19 +115,40 @@ window.removeModel = function (modelName) {
 
     // Remove from loaded models and UI
     delete loadedModels[modelName]
-    const modelElement = document.querySelector(`li[data-model="${modelName}"]`)
-    if (modelElement) {
-      modelElement.remove()
-    }
+    delete tokenCounts[modelName]
+    document.getElementById(modelElementId(modelName))?.remove()
+    renderCounts()
     return true
   }
   return false
 }
 
+const escapeHtml = (text) =>
+  text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+/**
+ * Model names are validated to [a-zA-Z0-9._-]/[a-zA-Z0-9._-], so this is a stable, valid id
+ */
+const modelElementId = (modelName) => `model-${modelName.replace('/', '--')}`
+
+/**
+ * Split "org/repo" so the org can be shown more quietly than the repo
+ */
+function splitModelName(modelName) {
+  const slashIndex = modelName.indexOf('/')
+  return {
+    org: escapeHtml(modelName.slice(0, slashIndex + 1)),
+    repo: escapeHtml(modelName.slice(slashIndex + 1)),
+  }
+}
+
 loadModels()
 
 const loadedModels = {}
+const tokenCounts = {}
 const modelsList = document.getElementById('models')
+const countsList = document.getElementById('counts')
+const charCount = document.getElementById('charCount')
 
 const textInput = document.getElementById('textInput')
 
@@ -134,9 +159,20 @@ if (urlText) {
   textInput.value = decodeURIComponent(urlText)
 }
 
-// Need to add 2 pixels to account for the borders
-textInput.setAttribute('style', `height:${textInput.scrollHeight + 2}px;`)
 let textInputContent = textInput.value
+
+function resizeTextInput() {
+  textInput.style.height = 0
+  textInput.style.height = `${textInput.scrollHeight}px`
+}
+
+function updateCharCount() {
+  const length = textInputContent.length
+  charCount.textContent = `${length} character${length === 1 ? '' : 's'}`
+}
+
+resizeTextInput()
+updateCharCount()
 
 /**
  * Debounce function to limit how often updateTokens is called
@@ -151,24 +187,41 @@ function debounce(func, delay) {
 const debouncedUpdateTokens = debounce(updateTokens, DEBOUNCE_DELAY)
 
 textInput.addEventListener('input', (event) => {
-  textInput.style.height = 0
-  textInput.style.height = `${textInput.scrollHeight + 2}px`
+  resizeTextInput()
   textInputContent = event.target.value
+  updateCharCount()
   debouncedUpdateTokens()
 })
+
+function renderModelHeader(modelName, meta = '') {
+  const { org, repo } = splitModelName(modelName)
+  return `
+    <div class="model-header">
+      <div class="model-name">
+        <span class="model-org">${org}</span>
+        <h2>${repo}</h2>
+      </div>
+      <div class="model-meta">
+        ${meta}
+        <button type="button" class="icon-btn remove-btn" data-model="${escapeHtml(modelName)}"
+          aria-label="Remove ${escapeHtml(modelName)}">${ICON_TRASH}</button>
+      </div>
+    </div>`
+}
 
 /**
  * Create model list item with loading indicator
  */
 function createModelListItem(modelName) {
   const listItem = document.createElement('li')
-  listItem.dataset.model = modelName
+  listItem.id = modelElementId(modelName)
+  listItem.className = 'card model-card loading'
   listItem.innerHTML = `
-    <div class="model-header">
-      <h2>${modelName} ⏳</h2>
-      <button class="delete-btn" onclick="removeModel('${modelName}')">🗑️ Delete</button>
+    ${renderModelHeader(modelName)}
+    <div class="skeleton" aria-hidden="true">
+      ${SKELETON_WIDTHS.map((width) => `<span style="width: ${width}px"></span>`).join('')}
     </div>
-    <p style="color: #666; font-style: italic;">Loading tokenizer...</p>
+    <span class="muted">Fetching tokenizer.json…</span>
   `
   return listItem
 }
@@ -214,6 +267,7 @@ async function loadTokenizers() {
       modelsList.appendChild(listItem)
     }
   }
+  renderCounts()
 
   // Load all models in parallel
   const loadPromises = models
@@ -224,14 +278,13 @@ async function loadTokenizers() {
   console.log('All models loaded')
 }
 
-const renderTokenAndText = (acc, { token, text }, index) => {
-  return (acc +=
-    text === '\n'
-      ? '<br>'
-      : `<ruby><rb style="background: #${COLOURS[index % COLOURS.length]}66">${text
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')}</rb><rt class="token">${token}</rt></ruby>`)
+/**
+ * A token's text sits above its ID; line breaks inside a token are shown as ↵ and then broken
+ */
+const renderTokenAndText = ({ token, text }, index) => {
+  const colour = COLOURS[index % COLOURS.length]
+  const lineBreaks = '<br>'.repeat((text.match(/\n/g) || []).length)
+  return `<ruby style="--c: #${colour}"><span>${escapeHtml(text.replace(/\n/g, '↵'))}</span><rt>${token}</rt></ruby>${lineBreaks}`
 }
 
 /**
@@ -241,22 +294,22 @@ function updateSingleModel(modelName) {
   const model = loadedModels[modelName]
   if (!model) return
 
-  let modelBlockWithTextAndTokens = ''
+  const modelElement = document.getElementById(modelElementId(modelName))
+  if (!modelElement) return
+
+  modelElement.classList.remove('loading')
+
   if (model.error) {
-    modelBlockWithTextAndTokens = `
-      <div class="model-header">
-        <h2>${modelName} ❌</h2>
-        <button class="delete-btn" onclick="removeModel('${modelName}')">🗑️ Delete</button>
-      </div>
-      <p style='white-space: pre-line; color: red; font-family: monospace; font-size: 0.9em; padding: 1em; background: rgba(255,0,0,0.1); border-radius: 4px;'>
-        Failed to load model. This could mean:
+    tokenCounts[modelName] = null
+    modelElement.innerHTML = `
+      ${renderModelHeader(modelName)}
+      <p class="model-error">Failed to load model. This could mean:
         • Model doesn't exist on HuggingFace
         • Missing required tokenizer files
         • Licence agreement required
         • Network connectivity issue
 
-Error: ${model.error}
-      </p>`
+Error: ${escapeHtml(model.error)}</p>`
   } else {
     const tokens = model.encode(textInputContent)
     const textFromTokens = model
@@ -264,21 +317,53 @@ Error: ${model.error}
         tokens.map((token) => [token]),
         { clean_up_tokenization_spaces: true }
       )
-      .map((text, index) => ({ text, token: tokens[index] }))
-      .reduce(renderTokenAndText, '')
+      .map((text, index) => renderTokenAndText({ text, token: tokens[index] }, index))
+      .join('<wbr>')
 
-    modelBlockWithTextAndTokens = `
-      <div class="model-header">
-        <h2>${modelName} <img src="favicons/token.svg" alt="Token"> Token count: ${tokens.length}</h2>
-        <button class="delete-btn" onclick="removeModel('${modelName}')">🗑️ Delete</button>
-      </div>
-      ${textFromTokens}
+    tokenCounts[modelName] = tokens.length
+    modelElement.innerHTML = `
+      ${renderModelHeader(
+        modelName,
+        `<div class="model-count"><strong>${tokens.length}</strong><span>tokens</span></div>`
+      )}
+      <div class="tokens">${textFromTokens}</div>
     `
   }
-  const modelElement = document.querySelector(`li[data-model="${modelName}"]`)
-  if (modelElement) {
-    modelElement.innerHTML = modelBlockWithTextAndTokens
-  }
+  renderCounts()
+}
+
+/**
+ * Token count overview: each name links to its model card, bars are relative to the largest count
+ */
+function renderCounts() {
+  const loadedCounts = models.map((m) => tokenCounts[m]).filter((count) => Number.isInteger(count))
+  const maxCount = Math.max(1, ...loadedCounts)
+
+  countsList.innerHTML = models
+    .map((modelName) => {
+      const { org, repo } = splitModelName(modelName)
+      const name = `<span class="count-name"><span class="muted">${org}</span>${repo}</span>`
+      const count = tokenCounts[modelName]
+
+      if (Number.isInteger(count)) {
+        const width = (count / maxCount) * 100
+        return `
+          <li><a href="#${modelElementId(modelName)}">
+            ${name}
+            <span class="count-bar"><span style="width: ${width}%"></span></span>
+            <span class="count-value">${count}</span>
+          </a></li>`
+      }
+
+      const failed = count === null
+      return `
+        <li><a href="#${modelElementId(modelName)}">
+          ${name}
+          <span class="count-bar pending"></span>
+          <span class="count-status${failed ? ' error' : ''}">${failed ? 'failed' : 'loading'}</span>
+        </a></li>`
+    })
+    .join('')
 }
 
 /**
@@ -291,48 +376,52 @@ function updateTokens() {
   }
 }
 
-await loadTokenizers()
+modelsList.addEventListener('click', (event) => {
+  const removeButton = event.target.closest('.remove-btn')
+  if (removeButton) {
+    removeModel(removeButton.dataset.model)
+  }
+})
 
-const addModelBox = document.getElementById('addModel')
-const addModelInput = addModelBox.querySelector('input')
-const addModelButton = addModelBox.querySelector('button')
+const addModelForm = document.getElementById('addModel')
+const addModelInput = document.getElementById('addModelInput')
 
-addModelButton.addEventListener('click', async () => {
+// Submitting the form also covers pressing Enter in the input
+addModelForm.addEventListener('submit', async (event) => {
+  event.preventDefault()
   const modelName = addModelInput.value
   if (addModel(modelName)) {
     addModelInput.value = ''
     loadModels()
     await loadTokenizers()
-    window.scrollTo(0, document.body.scrollHeight)
-  }
-})
-
-// Allow Enter key to add model
-addModelInput.addEventListener('keypress', (event) => {
-  if (event.key === 'Enter') {
-    addModelButton.click()
+    document.getElementById(modelElementId(modelName.trim()))?.scrollIntoView()
   }
 })
 
 // Share functionality
 const shareBtn = document.getElementById('shareBtn')
+const shareBtnLabel = shareBtn.querySelector('.btn-label')
+
+function showCopied() {
+  const originalLabel = shareBtnLabel.textContent
+  shareBtnLabel.textContent = 'Copied!'
+  shareBtn.classList.add('copied')
+
+  setTimeout(() => {
+    shareBtnLabel.textContent = originalLabel
+    shareBtn.classList.remove('copied')
+  }, COPIED_RESET_DELAY)
+}
+
 shareBtn.addEventListener('click', () => {
   const currentUrl = new URL(window.location.href)
+  currentUrl.hash = ''
   currentUrl.searchParams.set('text', encodeURIComponent(textInputContent))
   currentUrl.searchParams.set('models', models.join(','))
 
   navigator.clipboard
     .writeText(currentUrl.toString())
-    .then(() => {
-      const originalText = shareBtn.textContent
-      shareBtn.textContent = '✅ Copied!'
-      shareBtn.style.background = '#28a745'
-
-      setTimeout(() => {
-        shareBtn.textContent = originalText
-        shareBtn.style.background = '#0066cc'
-      }, 2000)
-    })
+    .then(showCopied)
     .catch((err) => {
       console.error('Failed to copy URL:', err)
       // Fallback: select the URL text
@@ -342,14 +431,8 @@ shareBtn.addEventListener('click', () => {
       textArea.select()
       document.execCommand('copy')
       document.body.removeChild(textArea)
-
-      const originalText = shareBtn.textContent
-      shareBtn.textContent = '✅ Copied!'
-      shareBtn.style.background = '#28a745'
-
-      setTimeout(() => {
-        shareBtn.textContent = originalText
-        shareBtn.style.background = '#0066cc'
-      }, 2000)
+      showCopied()
     })
 })
+
+await loadTokenizers()

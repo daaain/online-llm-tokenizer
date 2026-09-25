@@ -17,15 +17,15 @@ A pure JavaScript tokenizer running in your browser that can load `tokenizer.jso
 
 ### Adding Models
 
-Copy model names from HuggingFace (e.g., from the title of model pages like "microsoft/Phi-3-mini-4k-instruct") and paste into the input field. Press Enter or click "Add tokenizer from HuggingFace".
+Copy model names from HuggingFace (e.g., from the title of model pages like "microsoft/Phi-3-mini-4k-instruct") and paste into the "Add from Hugging Face" field. Press Enter or click "Add tokenizer".
 
 ### Deleting Models
 
-Click the red "🗑️ Delete" button next to any model. You'll get a confirmation prompt and cannot delete the last model.
+Click the bin button on any model card. You'll get a confirmation prompt and cannot delete the last model.
 
 ### Sharing Configurations
 
-Click the "📋 Share" button to copy a URL containing your current text and model selection. Share this URL with others to let them see the same tokenization.
+Click "Copy share link" to copy a URL containing your current text and model selection. Share this URL with others to let them see the same tokenization.
 
 ### URL Parameters
 
@@ -38,7 +38,8 @@ You can link directly to specific configurations using URL parameters:
 
 - Each word/subword piece shows the original text above and the token number below
 - Different background colours help distinguish adjacent tokens (cycling through 10 colours)
-- Newlines are preserved in the display
+- Newlines are preserved in the display, and tokens containing a line break show a ↵ symbol
+- The token count overview compares models at a glance; click a model name to jump to its card
 
 ## Implementation Details
 
