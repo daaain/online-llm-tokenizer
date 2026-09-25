@@ -555,9 +555,31 @@ ul#models {
 
 .model-meta {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
   flex-shrink: 0;
+}
+
+/* Syne sits high in its line box, so nudge the button up to line its bottom
+   up with the bottom of the digits */
+.model-meta .remove-btn {
+  margin-top: -8px;
+}
+
+/* Each card's remove button hovers in the next colour of the spectrum */
+#models > li:nth-child(9n + 1) { --accent: #E40303; }
+#models > li:nth-child(9n + 2) { --accent: #FF8C00; }
+#models > li:nth-child(9n + 3) { --accent: #FFED00; }
+#models > li:nth-child(9n + 4) { --accent: #008026; }
+#models > li:nth-child(9n + 5) { --accent: #061393; }
+#models > li:nth-child(9n + 6) { --accent: #732982; }
+#models > li:nth-child(9n + 7) { --accent: #5BCEFA; }
+#models > li:nth-child(9n + 8) { --accent: #F5A9B8; }
+#models > li:nth-child(9n + 9) { --accent: #8F3F2B; }
+
+/* Mixed towards the text colour, so navy stays visible on dark and yellow on light */
+.remove-btn:hover {
+  color: color-mix(in oklab, var(--accent, var(--error)) 70%, var(--ink));
 }
 
 .model-count {
