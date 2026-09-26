@@ -1,8 +1,6 @@
-// from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.3'
-import { AutoTokenizer } from './transformers.js'
-
 // Constants
 const KEY_MODELS = 'models'
+const KEY_CLEAN_UP = 'cleanUp'
 const DEBOUNCE_DELAY = 300 // ms
 const COPIED_RESET_DELAY = 2000 // ms
 const SKELETON_WIDTHS = [72, 120, 48, 96, 140, 64]
@@ -31,6 +29,7 @@ const ICON_TRASH =
 
 let models = []
 let debounceTimer = null
+let cleanUp = {}
 
 /**
  * Load models from URL parameters or localStorage
@@ -61,6 +60,25 @@ function loadModels() {
 
 function saveModels() {
   localStorage.setItem(KEY_MODELS, JSON.stringify(models))
+}
+
+/**
+ * Which models show their text with clean-up applied, remembered per model
+ */
+function loadCleanUp() {
+  try {
+    cleanUp = JSON.parse(localStorage.getItem(KEY_CLEAN_UP)) ?? {}
+  } catch {
+    cleanUp = {}
+  }
+}
+
+function saveCleanUp() {
+  try {
+    localStorage.setItem(KEY_CLEAN_UP, JSON.stringify(cleanUp))
+  } catch (error) {
+    console.warn("Couldn't remember the clean-up setting:", error)
+  }
 }
 
 /**
@@ -114,6 +132,7 @@ function removeModel(modelName) {
     saveModels()
 
     // Remove from loaded models and UI
+    loadedModels[modelName]?.worker.terminate()
     delete loadedModels[modelName]
     delete tokenCounts[modelName]
     document.getElementById(modelElementId(modelName))?.remove()
@@ -143,6 +162,7 @@ function splitModelName(modelName) {
 }
 
 loadModels()
+loadCleanUp()
 
 const loadedModels = {}
 const tokenCounts = {}
@@ -162,6 +182,8 @@ if (urlText) {
 let textInputContent = textInput.value
 
 function resizeTextInput() {
+  // Collapsing to measure forces a layout of every card, which is slow with a long text
+  if (CSS.supports('field-sizing', 'content')) return
   textInput.style.height = 0
   textInput.style.height = `${textInput.scrollHeight}px`
 }
@@ -226,32 +248,69 @@ function createModelListItem(modelName) {
   return listItem
 }
 
+// Compiled once and shared by every worker, so each only has to instantiate it
+const wasmModule = compileWasm()
+
+async function compileWasm() {
+  const url = new URL('tokenizers_wasm_bg.wasm', import.meta.url)
+  try {
+    return await WebAssembly.compileStreaming(fetch(url))
+  } catch {
+    // compileStreaming needs the server to send application/wasm
+    return WebAssembly.compile(await (await fetch(url)).arrayBuffer())
+  }
+}
+
 /**
- * Load a single tokenizer
+ * Load a single tokenizer in its own worker, so loading and tokenising stay off the main thread
  */
 async function loadSingleTokenizer(modelName) {
-  try {
-    console.log('Loading model:', modelName)
-    const tokenizer = await AutoTokenizer.from_pretrained(modelName)
+  const worker = new Worker(new URL('tokenizer-worker.js', import.meta.url), { type: 'module' })
+  // `seq` numbers tokenise requests, so a reply for text that has since changed can be dropped
+  const model = { worker, ready: false, error: null, cleanUpDefault: null, seq: 0, result: null }
+  loadedModels[modelName] = model
 
-    // some tokenizers strip spaces, let's prevent it so we can render them with the token numbers
-    if (tokenizer?.decoder?.decoders?.at(-1)?.config?.type === 'Strip') {
-      tokenizer.decoder.decoders.pop()
+  worker.onmessage = ({ data }) => {
+    if (loadedModels[modelName] !== model) return
+    if (data.type === 'loaded') {
+      console.log('Loaded model:', modelName)
+      model.ready = true
+      model.cleanUpDefault = data.cleanUpDefault
+      requestTokens(modelName)
+    } else if (data.type === 'tokenized') {
+      if (data.seq !== model.seq) return
+      model.error = null
+      model.result = { ids: data.ids, texts: data.texts }
+      updateSingleModel(modelName)
+    } else if (data.type === 'error') {
+      if (data.seq !== undefined && data.seq !== model.seq) return
+      console.error('Model error:', modelName, data.message)
+      model.error = data.message
+      updateSingleModel(modelName)
     }
-
-    loadedModels[modelName] = tokenizer
-    console.log('Loaded model:', modelName)
-
-    // Update this specific model's display
-    updateSingleModel(modelName)
-  } catch (error) {
-    console.error('Model loading error:', error)
-    const errorMessage = error.message || 'Unknown error loading model'
-    loadedModels[modelName] = { error: errorMessage }
-
-    // Update this specific model's display
+  }
+  worker.onerror = (event) => {
+    model.error = event.message || 'The tokenizer worker failed to start'
     updateSingleModel(modelName)
   }
+
+  console.log('Loading model:', modelName)
+  try {
+    worker.postMessage({ type: 'load', modelName, module: await wasmModule })
+  } catch (error) {
+    model.error = `Couldn't load the WebAssembly tokenizer: ${error.message}`
+    updateSingleModel(modelName)
+  }
+}
+
+/**
+ * Ask a loaded model's worker to tokenise the current text
+ */
+function requestTokens(modelName) {
+  const model = loadedModels[modelName]
+  if (!model?.ready) return
+  model.seq += 1
+  model.worker.postMessage({ type: 'tokenize', seq: model.seq, text: textInputContent })
 }
 
 /**
@@ -269,13 +328,10 @@ async function loadTokenizers() {
   }
   renderCounts()
 
-  // Load all models in parallel
-  const loadPromises = models
-    .filter((model) => !(model in loadedModels))
-    .map((model) => loadSingleTokenizer(model))
-
-  await Promise.all(loadPromises)
-  console.log('All models loaded')
+  // Load all models in parallel, each in its own worker
+  await Promise.all(
+    models.filter((model) => !(model in loadedModels)).map((model) => loadSingleTokenizer(model))
+  )
 }
 
 /**
@@ -288,11 +344,39 @@ const renderTokenAndText = ({ token, text }, index) => {
 }
 
 /**
+ * transformers' `clean_up_tokenization`: removes the space before punctuation and English contractions
+ */
+const cleanUpTokenization = (text) =>
+  text
+    .replaceAll(' .', '.')
+    .replaceAll(' ?', '?')
+    .replaceAll(' !', '!')
+    .replaceAll(' ,', ',')
+    .replaceAll(" ' ", "'")
+    .replaceAll(" n't", "n't")
+    .replaceAll(" 'm", "'m")
+    .replaceAll(" 's", "'s")
+    .replaceAll(" 've", "'ve")
+    .replaceAll(" 're", "'re")
+
+function renderCleanUpToggle(modelName, cleanUpDefault) {
+  const checked = cleanUp[modelName] ? 'checked' : ''
+  const modelDefault =
+    cleanUpDefault === null ? 'no tokenizer_config.json' : `model default: ${cleanUpDefault ? 'on' : 'off'}`
+  return `
+    <label class="clean-up-toggle">
+      <input type="checkbox" data-model="${escapeHtml(modelName)}" ${checked}>
+      Clean up spaces before punctuation
+      <span class="muted">(${modelDefault})</span>
+    </label>`
+}
+
+/**
  * Update display for a single model
  */
 function updateSingleModel(modelName) {
   const model = loadedModels[modelName]
-  if (!model) return
+  if (!model || !(model.error || model.result)) return
 
   const modelElement = document.getElementById(modelElementId(modelName))
   if (!modelElement) return
@@ -303,21 +387,17 @@ function updateSingleModel(modelName) {
     tokenCounts[modelName] = null
     modelElement.innerHTML = `
       ${renderModelHeader(modelName)}
-      <p class="model-error">Failed to load model. This could mean:
-        • Model doesn't exist on HuggingFace
-        • Missing required tokenizer files
-        • Licence agreement required
-        • Network connectivity issue
-
-Error: ${escapeHtml(model.error)}</p>`
+      <p class="model-error">${model.ready ? 'Failed to tokenise' : 'Failed to load the tokenizer'}: ${escapeHtml(model.error)}</p>`
   } else {
-    const tokens = model.encode(textInputContent)
-    const textFromTokens = model
-      .batch_decode(
-        tokens.map((token) => [token]),
-        { clean_up_tokenization_spaces: true }
+    const { ids: tokens, texts } = model.result
+    // Each token is shown exactly as it is, e.g. " ." rather than ".", unless clean-up is on
+    const textFromTokens = texts
+      .map((text, index) =>
+        renderTokenAndText(
+          { text: cleanUp[modelName] ? cleanUpTokenization(text) : text, token: tokens[index] },
+          index
+        )
       )
-      .map((text, index) => renderTokenAndText({ text, token: tokens[index] }, index))
       .join('<wbr>')
 
     tokenCounts[modelName] = tokens.length
@@ -327,6 +407,7 @@ Error: ${escapeHtml(model.error)}</p>`
         `<div class="model-count"><strong>${tokens.length}</strong><span>tokens</span></div>`
       )}
       <div class="tokens">${textFromTokens}</div>
+      ${renderCleanUpToggle(modelName, model.cleanUpDefault)}
     `
   }
   renderCounts()
@@ -367,12 +448,11 @@ function renderCounts() {
 }
 
 /**
- * Update tokens for all loaded models
- * TODO: Consider doing this in a worker for better performance
+ * Re-tokenise the current text in every loaded model's worker
  */
 function updateTokens() {
   for (const modelName of Object.keys(loadedModels)) {
-    updateSingleModel(modelName)
+    requestTokens(modelName)
   }
 }
 
@@ -381,6 +461,16 @@ modelsList.addEventListener('click', (event) => {
   if (removeButton) {
     removeModel(removeButton.dataset.model)
   }
+})
+
+modelsList.addEventListener('change', (event) => {
+  const toggle = event.target.closest('.clean-up-toggle input')
+  if (!toggle) return
+  const modelName = toggle.dataset.model
+  if (toggle.checked) cleanUp[modelName] = true
+  else delete cleanUp[modelName]
+  saveCleanUp()
+  updateSingleModel(modelName)
 })
 
 const addModelForm = document.getElementById('addModel')

@@ -1,0 +1,6 @@
+tokenizers/
+models/
+node_modules/
+pkg-node/
+text.txt
+package-lock.json
