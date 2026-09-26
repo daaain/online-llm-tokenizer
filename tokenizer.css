@@ -116,12 +116,25 @@ code {
 
 .page {
   box-sizing: border-box;
-  max-width: 1280px;
-  margin: 0 auto;
   padding: 32px clamp(16px, 6vw, 80px) 80px;
   display: flex;
   flex-direction: column;
   gap: 48px;
+}
+
+/* Everything keeps a readable width, apart from the model cards, which fill wide screens with more columns */
+.page > * {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1120px;
+  margin-inline: auto;
+}
+
+/* Once a third 34rem column fits */
+@media (min-width: 115rem) {
+  .page > ul#models {
+    max-width: none;
+  }
 }
 
 .card {
@@ -369,8 +382,10 @@ textarea#textInput {
   box-sizing: border-box;
   width: 100%;
   min-height: 5em;
+  /* Long texts scroll inside, so the tokens stay close by */
+  max-height: 40vh;
   padding: 0;
-  overflow-y: hidden;
+  overflow-y: auto;
   /* Grows with its text; tokenizer.js resizes it by hand where this isn't supported */
   field-sizing: content;
   resize: none;
@@ -484,22 +499,16 @@ textarea#textInput {
   }
 }
 
-/* Model cards: one column, two on wide screens */
+/* Model cards: as many columns as fit, each at least 34rem wide */
 
 ul#models {
   margin: 0;
   padding: 0;
   list-style: none;
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 34rem), 1fr));
   gap: 24px;
   align-items: start;
-}
-
-@media (min-width: 1280px) {
-  ul#models {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 .model-card {
