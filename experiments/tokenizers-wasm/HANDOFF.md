@@ -134,8 +134,7 @@ Copy `src/lib.rs`, `Cargo.toml`, `.cargo/config.toml`, `build.sh`, `examples/nat
    - Drop superseded results when the text changes mid-tokenise, e.g. with a sequence number per request.
 3. **Remove the old workarounds.**
    - Remove the `Strip` decoder hack (the library does it).
-   - Remove `clean_up_tokenization_spaces: true`. The new output shows each token's real text (`" ."` rather than `"."`), which is more accurate.
-   - Consider noting this in the "How it works" section.
+   - The app already shows each token's real text (`" ."` rather than `"."`): `clean_up_tokenization_spaces` was switched off in favour of fidelity. Keep that behaviour and don't add any clean-up back.
 4. **Update error text for load failures.** Rust errors differ from transformers.js errors.
 5. **Update the copy.**
    - `index.html` meta description ("using Transformers.js")

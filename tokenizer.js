@@ -315,7 +315,8 @@ Error: ${escapeHtml(model.error)}</p>`
     const textFromTokens = model
       .batch_decode(
         tokens.map((token) => [token]),
-        { clean_up_tokenization_spaces: true }
+        // Show each token exactly as it is, e.g. " ." rather than "."
+        { clean_up_tokenization_spaces: false }
       )
       .map((text, index) => renderTokenAndText({ text, token: tokens[index] }, index))
       .join('<wbr>')
