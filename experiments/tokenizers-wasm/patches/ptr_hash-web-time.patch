@@ -1,0 +1,150 @@
+diff -ru '--exclude=target' a/Cargo.toml ptr_hash-patched/Cargo.toml
+--- a/Cargo.toml	2006-07-24 01:21:28.000000000 +0000
++++ b/Cargo.toml	2026-09-26 13:24:37.653795433 +0000
+@@ -180,6 +180,9 @@
+ [dependencies.rand_chacha]
+ version = "0.10.0"
+ 
++[dependencies.web-time]
++version = "1"
++
+ [dependencies.rayon]
+ version = "1.8.0"
+ 
+diff -ru '--exclude=target' a/src/lib.rs ptr_hash-patched/src/lib.rs
+--- a/src/lib.rs	2006-07-24 01:21:28.000000000 +0000
++++ b/src/lib.rs	2026-09-26 13:24:37.636943921 +0000
+@@ -188,7 +188,7 @@
+ pub use shard::Sharding;
+ use stats::BucketStats;
+ use std::array::from_fn;
+-use std::{borrow::Borrow, default::Default, marker::PhantomData, time::Instant};
++use std::{borrow::Borrow, default::Default, marker::PhantomData, };
+ 
+ use crate::{hash::*, pack::Packed, reduce::*, util::log_duration};
+ 
+@@ -592,7 +592,7 @@
+         &mut self,
+         keys: impl ParallelIterator<Item = impl Borrow<Key>> + Clone + 'a,
+     ) -> Option<BucketStats> {
+-        let overall_start = std::time::Instant::now();
++        let overall_start = web_time::Instant::now();
+         // Initialize arrays;
+         let mut taken: Vec<BitVec> = vec![];
+         let mut pilots: Vec<u8> = vec![];
+@@ -643,7 +643,7 @@
+                 izip!(shard_hashes, shard_pilots, shard_taken).enumerate()
+             {
+                 // Determine the buckets.
+-                let start = std::time::Instant::now();
++                let start = web_time::Instant::now();
+                 let Some((hashes, part_starts)) = self.sort_parts(shard, hashes) else {
+                     trace!("Found duplicate hashes");
+                     // Found duplicate hashes.
+@@ -663,7 +663,7 @@
+                 }
+             }
+ 
+-            let start = std::time::Instant::now();
++            let start = web_time::Instant::now();
+             let remap = self.remap_free_slots(&taken);
+             log_duration("remap free", start);
+             if remap.is_err() {
+diff -ru '--exclude=target' a/src/shard.rs ptr_hash-patched/src/shard.rs
+--- a/src/shard.rs	2006-07-24 01:21:28.000000000 +0000
++++ b/src/shard.rs	2026-09-26 13:24:37.637557770 +0000
+@@ -81,7 +81,7 @@
+         keys: impl ParallelIterator<Item = impl Borrow<Key>> + Clone + 'a,
+     ) -> Box<dyn Iterator<Item = Vec<Hx::H>> + 'a> {
+         trace!("No sharding: collecting all {} hashes in memory.", self.n);
+-        let start = std::time::Instant::now();
++        let start = web_time::Instant::now();
+         let hashes = keys.map(|key| self.hash_key(key.borrow())).collect();
+         log_duration("collect hash", start);
+         Box::new(std::iter::once(hashes))
+@@ -101,7 +101,7 @@
+         );
+         let it = (0..self.shards).map(move |shard| {
+             trace!("Shard {shard:>3}/{:3}\r", self.shards);
+-            let start = std::time::Instant::now();
++            let start = web_time::Instant::now();
+             let hashes: Vec<_> = keys
+                 .clone()
+                 .map(|key| self.hash_key(key.borrow()))
+@@ -152,7 +152,7 @@
+                 let shard_range = first_shard..(first_shard + shards_on_disk).min(self.shards);
+                 info!("Writing keys for shards {shard_range:?}/{}", self.shards);
+ 
+-                let start = std::time::Instant::now();
++                let start = web_time::Instant::now();
+ 
+                 // Create a file writer and count for each shard.
+                 let writers = shard_range
+@@ -202,7 +202,7 @@
+                     .into_iter()
+                     .zip(shard_range)
+                     .map(move |((f, cnt), _shard)| {
+-                        let start = std::time::Instant::now();
++                        let start = web_time::Instant::now();
+                         let mut v = vec![Hx::H::default(); cnt];
+                         let mut reader = BufReader::new(f);
+                         let (pre, data, post) = unsafe { v.align_to_mut::<u8>() };
+diff -ru '--exclude=target' a/src/sort_buckets.rs ptr_hash-patched/src/sort_buckets.rs
+--- a/src/sort_buckets.rs	2006-07-24 01:21:28.000000000 +0000
++++ b/src/sort_buckets.rs	2026-09-26 13:24:37.637433509 +0000
+@@ -1,7 +1,7 @@
+ use super::*;
+ use crate::bucket_idx::BucketIdx;
+ use rdst::RadixSort;
+-use std::time::Instant;
++use web_time::Instant;
+ 
+ impl<Key: KeyT + ?Sized, BF: BucketFn, F: Packed, Hx: KeyHasher<Key>, const SINGLE_PART: bool, const REMAP: bool>
+     PtrHash<Key, BF, F, Hx, Vec<u8>, SINGLE_PART, REMAP>
+diff -ru '--exclude=target' a/src/test.rs ptr_hash-patched/src/test.rs
+--- a/src/test.rs	2006-07-24 01:21:28.000000000 +0000
++++ b/src/test.rs	2026-09-26 13:24:37.636595675 +0000
+@@ -82,13 +82,13 @@
+     let keys = (0..n as u64).map(|i| hash::C * i).collect::<Vec<_>>();
+     let seed = black_box(132);
+ 
+-    let start = std::time::Instant::now();
++    let start = web_time::Instant::now();
+     for k in &keys {
+         black_box(FastIntHash::hash(k, seed));
+     }
+     eprintln!("Time {:?}", start.elapsed());
+ 
+-    let start = std::time::Instant::now();
++    let start = web_time::Instant::now();
+     for k in &keys {
+         black_box(StrongerIntHash::hash(k, seed));
+     }
+@@ -96,14 +96,14 @@
+ 
+     #[cfg(feature = "gxhash")]
+     {
+-        let start = std::time::Instant::now();
++        let start = web_time::Instant::now();
+         for k in &keys {
+             black_box(GxInt::hash(k, seed));
+         }
+         eprintln!("Time {:?}", start.elapsed());
+     }
+ 
+-    let start = std::time::Instant::now();
++    let start = web_time::Instant::now();
+     for k in &keys {
+         black_box(Xxh3Int::hash(k, seed));
+     }
+diff -ru '--exclude=target' a/src/util.rs ptr_hash-patched/src/util.rs
+--- a/src/util.rs	2006-07-24 01:21:28.000000000 +0000
++++ b/src/util.rs	2026-09-26 13:24:56.940935134 +0000
+@@ -6,6 +6,7 @@
+ use rand::{rng, RngExt};
+ use rayon::prelude::*;
+ use rdst::RadixSort;
++use web_time::Instant;
+ 
+ pub(crate) fn mul_high(a: u64, b: u64) -> u64 {
+     ((a as u128 * b as u128) >> 64) as u64

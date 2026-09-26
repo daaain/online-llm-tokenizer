@@ -1,0 +1,20 @@
+diff --git a/tokenizers/tk-encode/src/models/bpe/serialization.rs b/tokenizers/tk-encode/src/models/bpe/serialization.rs
+index 438126f..c53237f 100644
+--- a/tokenizers/tk-encode/src/models/bpe/serialization.rs
++++ b/tokenizers/tk-encode/src/models/bpe/serialization.rs
+@@ -259,11 +259,11 @@ impl PipelineBPE {
+                 let mut fallback_lookup = [0u32; 256];
+                 for b in 0u8..=255 {
+                     let code = format!("<{b:#04X}>");
+-                    let external = vocab
+-                        .token_to_id(&code)
+-                        .ok_or(Error::ByteFallbackOutOfVocabulary(b))?;
++                    // Gemma's vocab spells some bytes as literal tokens (e.g. tab) instead of
++                    // `<0x09>`, so those codes are unreachable; point them at `<unk>` when there is one
++                    let internal = vocab.token_to_id(&code).and_then(to_internal).or(unk_token);
+                     fallback_lookup[b as usize] =
+-                        to_internal(external).ok_or(Error::ByteFallbackOutOfVocabulary(b))?;
++                        internal.ok_or(Error::ByteFallbackOutOfVocabulary(b))?;
+                 }
+                 Some(fallback_lookup)
+             } else {

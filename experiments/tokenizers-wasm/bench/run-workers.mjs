@@ -1,0 +1,12 @@
+import { chromium } from 'playwright-core'
+const browser = await chromium.launch({ executablePath: 'process.env.CHROMIUM_PATH' })
+const page = await browser.newPage()
+page.on('pageerror', (e) => { console.error('pageerror:', e.message); process.exit(1) })
+await page.goto(`http://localhost:8765/workers.html?models=${process.argv[2]}`)
+await page.waitForFunction(() => window.results, null, { timeout: 280000 })
+const r = await page.evaluate(() => window.results)
+const f = (a) => a.map((x) => x.toFixed(0)).join(', ')
+console.log(`cores=${r.cores} compile=${r.compileMs.toFixed(0)}ms`)
+console.log(`load all in parallel: wall ${r.loadWall.toFixed(0)}ms (per worker: ${f(r.loads)}; serial sum would be ~${r.loads.reduce((a, b) => a + b).toFixed(0)}ms)`)
+console.log(`tokenize all in parallel: wall ${r.tokWall.toFixed(1)}ms (per worker: ${f(r.toks)})`)
+await browser.close()

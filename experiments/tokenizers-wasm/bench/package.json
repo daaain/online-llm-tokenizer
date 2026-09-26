@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "dependencies": {
+    "@huggingface/transformers": "3.7.3",
+    "playwright-core": "^1.63.0"
+  }
+}
