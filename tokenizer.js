@@ -267,7 +267,7 @@ async function compileWasm() {
 async function loadSingleTokenizer(modelName) {
   const worker = new Worker(new URL('tokenizer-worker.js', import.meta.url), { type: 'module' })
   // `seq` numbers tokenise requests, so a reply for text that has since changed can be dropped
-  const model = { worker, ready: false, error: null, cleanUpDefault: null, seq: 0, result: null }
+  const model = { worker, ready: false, error: null, cleanUpDefault: null, seq: 0, pending: false, result: null }
   loadedModels[modelName] = model
 
   worker.onmessage = ({ data }) => {
@@ -279,17 +279,20 @@ async function loadSingleTokenizer(modelName) {
       requestTokens(modelName)
     } else if (data.type === 'tokenized') {
       if (data.seq !== model.seq) return
+      model.pending = false
       model.error = null
       model.result = { ids: data.ids, texts: data.texts }
       updateSingleModel(modelName)
     } else if (data.type === 'error') {
       if (data.seq !== undefined && data.seq !== model.seq) return
       console.error('Model error:', modelName, data.message)
+      model.pending = false
       model.error = data.message
       updateSingleModel(modelName)
     }
   }
   worker.onerror = (event) => {
+    model.pending = false
     model.error = event.message || 'The tokenizer worker failed to start'
     updateSingleModel(modelName)
   }
@@ -310,6 +313,7 @@ function requestTokens(modelName) {
   const model = loadedModels[modelName]
   if (!model?.ready) return
   model.seq += 1
+  model.pending = true
   model.worker.postMessage({ type: 'tokenize', seq: model.seq, text: textInputContent })
 }
 
@@ -422,38 +426,51 @@ function updateSingleModel(modelName) {
   renderCounts()
 }
 
+function renderCountRow(modelName) {
+  const { org, repo } = splitModelName(modelName)
+  return `
+    <li data-model="${escapeHtml(modelName)}"><a href="#${modelElementId(modelName)}">
+      <span class="count-name"><span class="muted">${org}</span>${repo}</span>
+      <span class="count-bar"><span></span></span>
+      <span></span>
+    </a></li>`
+}
+
 /**
- * Token count overview: each name links to its model card, bars are relative to the largest count
+ * Token count overview: each name links to its model card, bars are relative to the largest count.
+ * Rows are updated in place, so bars ease to their new length and a processing animation isn't restarted
  */
 function renderCounts() {
   const loadedCounts = models.map((m) => tokenCounts[m]).filter((count) => Number.isInteger(count))
   const maxCount = Math.max(1, ...loadedCounts)
 
-  countsList.innerHTML = models
-    .map((modelName) => {
-      const { org, repo } = splitModelName(modelName)
-      const name = `<span class="count-name"><span class="muted">${org}</span>${repo}</span>`
-      const count = tokenCounts[modelName]
+  const rows = countsList.children
+  if (rows.length !== models.length || models.some((modelName, index) => rows[index].dataset.model !== modelName)) {
+    countsList.innerHTML = models.map(renderCountRow).join('')
+  }
 
-      if (Number.isInteger(count)) {
-        const width = (count / maxCount) * 100
-        return `
-          <li><a href="#${modelElementId(modelName)}">
-            ${name}
-            <span class="count-bar"><span style="width: ${width}%"></span></span>
-            <span class="count-value">${count}</span>
-          </a></li>`
-      }
+  models.forEach((modelName, index) => {
+    const row = rows[index]
+    const [, bar, value] = row.firstElementChild.children
+    const count = tokenCounts[modelName]
+    const hasCount = Number.isInteger(count)
+    const processing = Boolean(loadedModels[modelName]?.pending)
 
-      const failed = count === null
-      return `
-        <li><a href="#${modelElementId(modelName)}">
-          ${name}
-          <span class="count-bar pending"></span>
-          <span class="count-status${failed ? ' error' : ''}">${failed ? 'failed' : 'loading'}</span>
-        </a></li>`
-    })
-    .join('')
+    row.classList.toggle('processing', processing)
+    if (processing !== row.hasAttribute('aria-busy')) {
+      if (processing) row.setAttribute('aria-busy', 'true')
+      else row.removeAttribute('aria-busy')
+    }
+    bar.classList.toggle('pending', !hasCount)
+    const width = hasCount ? `${(count / maxCount) * 100}%` : '0%'
+    if (bar.firstElementChild.style.width !== width) bar.firstElementChild.style.width = width
+
+    const failed = count === null
+    const valueClass = hasCount ? 'count-value' : `count-status${failed ? ' error' : ''}`
+    const valueText = hasCount ? String(count) : failed ? 'failed' : 'loading'
+    if (value.className !== valueClass) value.className = valueClass
+    if (value.textContent !== valueText) value.textContent = valueText
+  })
 }
 
 /**
@@ -463,6 +480,7 @@ function updateTokens() {
   for (const modelName of Object.keys(loadedModels)) {
     requestTokens(modelName)
   }
+  renderCounts()
 }
 
 modelsList.addEventListener('click', (event) => {
