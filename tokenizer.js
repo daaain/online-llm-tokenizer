@@ -60,6 +60,13 @@ function loadModels() {
 
 function saveModels() {
   localStorage.setItem(KEY_MODELS, JSON.stringify(models))
+
+  // A shared link's model list stays in step with the page, so reloading doesn't undo adding or removing a model
+  const url = new URL(window.location.href)
+  if (url.searchParams.has('models') && url.searchParams.get('models') !== models.join(',')) {
+    url.searchParams.set('models', models.join(','))
+    history.replaceState(history.state, '', url)
+  }
 }
 
 /**
@@ -509,7 +516,6 @@ addModelForm.addEventListener('submit', async (event) => {
   const modelName = addModelInput.value
   if (addModel(modelName)) {
     addModelInput.value = ''
-    loadModels()
     await loadTokenizers()
     document.getElementById(modelElementId(modelName.trim()))?.scrollIntoView()
   }
