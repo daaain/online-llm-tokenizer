@@ -591,12 +591,15 @@ ul#models {
 
 .model-header {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
 }
 
+/* On narrow cards the count moves below the name rather than squeezing it to a few letters per line */
 .model-name {
+  flex: 1 1 10rem;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -620,6 +623,7 @@ ul#models {
   align-items: baseline;
   gap: 12px;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 /* Each card's remove button hovers in the next colour of the spectrum */
@@ -647,7 +651,7 @@ ul#models {
 .model-count strong {
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 2.75rem;
+  font-size: clamp(2.25rem, 1.5rem + 2.5vw, 2.75rem);
   line-height: 1;
 }
 
