@@ -29,15 +29,17 @@ The experiment is in this folder: read `README.md` for the numbers, and `build.s
 Fork: `daaain/tokenizers`, with two branches:
 
 - `claude/eloquent-rubin-6u1o9u`, off upstream `main`. Upstreamable fixes only, one PR each.
-  - Byte-fallback fix (was 1a): a BPE vocab missing some `<0xNN>` codes now loads, and a character needing a missing code becomes `unk`, as in 0.x. Gemma 2 matches 0.23.2 across the whole oracle test. The PR to upstream still has to be opened by hand (this environment can't open PRs on `huggingface/tokenizers`).
+  - Byte-fallback fix (was 1a): a BPE vocab missing some `<0xNN>` codes now loads, and a character needing a missing code becomes `unk`, as in 0.x. Gemma 2 matches 0.23.2 across the whole oracle test. PR opened upstream.
 - `claude/wasm-integration`: #2450 merged with the branch above, plus `+simd128` and a `decode_each` method. This is what the app consumes until everything is released. Never open a PR from it.
-  - It has not been built to `.wasm` yet: the session that made it couldn't install the wasm target. Only a native `cargo check` has passed.
+  - `ptr_hash` comes from the fix on `daaain/PtrHash@claude/eloquent-rubin-6u1o9u` (PR open upstream), not #2450's vendored copy.
+  - Built and checked: `bench/parity.mjs` shows ids and per-token text matching transformers.js 3.7.3 for all 14 models, including Gemma 2.
 
-Still to do:
+Notes and follow-ups:
 
-1. **Build and check the integration branch.** `rustup target add wasm32-unknown-unknown`, `cargo install wasm-bindgen-cli --version 0.2.128` (it must equal the pinned crate), then `make build` in `bindings/wasm`. Run this folder's `bench/node-bench.mjs` parity check against it (the API is `Tokenizer.from_json(json)`, `encode(text, { addSpecialTokens, padding: false, truncation: false })`, `decode_each(ids)`) across the 14 models.
-2. **Comment on #2450** (daaain): `+simd128` missing, the `decode` doc/default mismatch, the `node-release.yml` change that looks like it undoes #2448, `cargo fmt`, and the proposal for `decode_each`.
-3. **`ptr_hash` PR** (was 1b) to <https://github.com/RagnarGrootKoerkamp/ptrhash>: only take timestamps when `log::log_enabled!(Trace)`, so no new dependency. #2450's reviewer asked for exactly this rather than vendoring. Needs a fork of that repo.
+1. **Rebuilding.** `rustup target add wasm32-unknown-unknown` and `cargo install wasm-bindgen-cli --version 0.2.128` (it must equal the pinned crate), then `cargo build --release` in `bindings/wasm` and `wasm-bindgen --target web` (or `nodejs` for `bench/parity.mjs`) on `target/wasm32-unknown-unknown/release/tokenizers_wasm.wasm`. The API is `Tokenizer.from_json(json)`, `encode(text, { addSpecialTokens, padding: false, truncation: false })` and `decode_each(ids)`.
+2. **Commented on #2450** (daaain, done): `+simd128` missing, the `decode` doc/default mismatch, the `node-release.yml` change that looks like it undoes #2448, `cargo fmt`, and the proposal for `decode_each`.
+   - `+simd128` made no measurable encode difference in Node across six models (±noise at 10× the 40 KB text), so don't lean on it as a speed claim without browser numbers.
+3. **`ptr_hash` PR** (was 1b, opened): reads the clock only when trace logging is on, never on `wasm32-unknown-unknown`. No new dependency. Once released, #2450 can drop its vendored copy.
 4. **Optional, later:** faster `decode_each` (one string plus UTF-16 offsets instead of one JS string per token), load-time profiling of `from_json`, size (`opt-level`, `wasm-opt`). Each would be a PR against #2450's code once it lands, with numbers.
 
 What stays in the app rather than the library: removing the `Strip` decoder (edit the JSON before `from_json`), the clean-up toggle (`clean_up_tokenization_spaces` is a transformers setting), fetching and caching from the Hub, and the worker pool (`bench/worker.js` is the prototype).
