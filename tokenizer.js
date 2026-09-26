@@ -74,7 +74,11 @@ function loadCleanUp() {
 }
 
 function saveCleanUp() {
-  localStorage.setItem(KEY_CLEAN_UP, JSON.stringify(cleanUp))
+  try {
+    localStorage.setItem(KEY_CLEAN_UP, JSON.stringify(cleanUp))
+  } catch (error) {
+    console.warn("Couldn't remember the clean-up setting:", error)
+  }
 }
 
 /**

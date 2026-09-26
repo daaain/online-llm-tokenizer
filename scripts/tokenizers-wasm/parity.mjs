@@ -47,3 +47,4 @@ for (const m of MODELS) {
   rs.free()
 }
 console.log(failures ? `${failures} model(s) differ` : 'all models match')
+if (failures) process.exitCode = 1
