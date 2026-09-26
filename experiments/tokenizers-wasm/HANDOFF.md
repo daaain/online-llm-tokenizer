@@ -90,6 +90,9 @@ Copy `src/lib.rs`, `Cargo.toml`, `.cargo/config.toml`, `build.sh`, `examples/nat
 
 1. **Faster per-token decode.** `decodeEach` dominates the per-keystroke cost (about 6 of every 7 ms). Return one concatenated string plus a `Uint32Array` of offsets, and let JS slice it. Measure with `bench/run-bench.mjs`.
 2. **Make stripping configurable.** Make the `Strip` removal an option instead of hard-coded.
+   - **Offer clean-up as an option too.** `clean_up_tokenization_spaces` is a transformers-level setting from `tokenizer_config.json`, not part of `tokenizer.json`, so the Rust pipeline doesn't do it.
+     - Expose an optional clean-up step (in Rust or JS) that matches transformers' `clean_up_tokenization`: `" ."`→`"."`, `" ?"`, `" !"`, `" ,"`, `" ' "`→`"'"`, `" n't"`, `" 'm"`, `" 's"`, `" 've"`, `" 're"`.
+     - Also expose the model's own default from `tokenizer_config.json`, so the app can offer a per-model toggle (see session 3).
 3. **Loading helper.** `fromPretrained(repo)` that fetches `https://huggingface.co/<repo>/resolve/main/tokenizer.json`, cached with the Cache API as transformers.js does. It should report "missing / gated / 404" errors clearly.
 4. **Worker helper.**
    - A small module that compiles the `.wasm` once (`WebAssembly.compileStreaming`) and runs one worker per tokenizer, or a pool capped at `navigator.hardwareConcurrency`.
@@ -134,7 +137,11 @@ Copy `src/lib.rs`, `Cargo.toml`, `.cargo/config.toml`, `build.sh`, `examples/nat
    - Drop superseded results when the text changes mid-tokenise, e.g. with a sequence number per request.
 3. **Remove the old workarounds.**
    - Remove the `Strip` decoder hack (the library does it).
-   - The app already shows each token's real text (`" ."` rather than `"."`): `clean_up_tokenization_spaces` was switched off in favour of fidelity. Keep that behaviour and don't add any clean-up back.
+   - The app already shows each token's real text (`" ."` rather than `"."`): `clean_up_tokenization_spaces` was switched off in favour of fidelity. Keep that as the default.
+   - **Add a per-model clean-up toggle.** Each model card gets a small switch to show the output with the model's clean-up applied, using the library option from session 2. Default it to off, whatever the model's `tokenizer_config.json` says, but show that config default next to the switch.
+     - This makes the difference visible, e.g. `"don"` + `" 't"` vs `"don't"`, and `" ."` vs `"."`.
+     - Clean-up only changes the displayed text, never the token ids or count.
+     - Consider remembering the toggles in localStorage and share links alongside the model list.
 4. **Update error text for load failures.** Rust errors differ from transformers.js errors.
 5. **Update the copy.**
    - `index.html` meta description ("using Transformers.js")
