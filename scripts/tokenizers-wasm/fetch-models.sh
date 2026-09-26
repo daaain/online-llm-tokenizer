@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Download tokenizer files for the benchmarks into bench/models, plus the text they tokenize
+# Download tokenizer files for the parity check into models/, plus the text it tokenizes
 set -euo pipefail
 cd "$(dirname "$0")"
 MODELS=(
@@ -14,6 +14,5 @@ for model in "${MODELS[@]}"; do
     curl -sSfL -o "models/$model/$file" "https://huggingface.co/$model/resolve/main/$file"
   done
 done
-ROOT=../../..
+ROOT=../..
 cat $ROOT/index.html $ROOT/tokenizer.js $ROOT/tokenizer.css $ROOT/README.md > text.txt
-cp $ROOT/transformers.js .

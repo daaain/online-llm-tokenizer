@@ -1,10 +1,10 @@
 # Online LLM Tokenizer
 
-A pure JavaScript tokenizer running in your browser that can load `tokenizer.json` and `tokenizer_config.json` from any repository on HuggingFace. You can use it to count tokens and compare how different large language model vocabularies work. It's also useful for debugging prompt templates.
+A tokenizer running entirely in your browser that can load `tokenizer.json` and `tokenizer_config.json` from any repository on HuggingFace. You can use it to count tokens and compare how different large language model vocabularies work. It's also useful for debugging prompt templates.
 
 ## Features
 
-- **No server required**: Pure client-side tokenization using [transformers.js](https://huggingface.co/docs/transformers.js)
+- **No server required**: Client-side tokenization with Hugging Face's Rust [tokenizers](https://github.com/huggingface/tokenizers) compiled to WebAssembly
 - **Compare models**: Load multiple tokenizers simultaneously to see how different models tokenize the same text
 - **Visual token display**: Each token is displayed with its original text and token ID using colour-coded backgrounds
 - **Share configurations**: Generate shareable URLs with your text and model selection
@@ -40,36 +40,41 @@ You can link directly to specific configurations using URL parameters:
 - Different background colours help distinguish adjacent tokens (cycling through 10 colours)
 - Newlines are preserved in the display, and tokens containing a line break show a ↵ symbol
 - The token count overview compares models at a glance; click a model name to jump to its card
+- Tokens show their exact text (`" ."` keeps its space). A per-model "Clean up spaces before punctuation" switch shows the text as the model's decoder would tidy it, next to that model's own default. It never changes the IDs or the count
 
 ## Implementation Details
 
-- **Parallel model loading**: All tokenizers load simultaneously using `Promise.all()` instead of sequentially, to improve startup time
+- **Rust tokenizers in WebAssembly**: The same tokenization code as Hugging Face's Python and Rust libraries, built from the wasm binding in [huggingface/tokenizers#2450](https://github.com/huggingface/tokenizers/pull/2450)
+- **Web Workers**: Each tokenizer loads and runs in its own worker, in parallel and off the main thread. The WebAssembly module is compiled once and shared
 - **Progressive rendering**: Models appear and update individually as they finish loading, providing immediate feedback
 - **Debounced input processing**: Text changes are debounced by 300ms to prevent excessive re-tokenization during typing
 - **Ruby annotations**: Tokens are displayed using HTML `<ruby>` elements with text above and token numbers below
 - **Space preservation**: Automatically detects and removes tokenizer space-stripping to accurately show whitespace tokens
-- **Memory management**: Models are cached in memory and only loaded once, with cleanup on deletion
+- **Caching**: Tokenizer files are kept with the Cache API, so reloading doesn't download them again. Deleting a model stops its worker
 
 ## Development
 
-The project consists of three main files:
+The project consists of these files:
 
 - `index.html` - Main HTML structure and UI
 - `tokenizer.css` - Styling including dark mode support
-- `tokenizer.js` - Core tokenization logic using transformers.js
+- `tokenizer.js` - UI logic, and one worker per model
+- `tokenizer-worker.js` - Fetches a model's tokenizer files and tokenizes in a Web Worker
+- `tokenizers_wasm.js` and `tokenizers_wasm_bg.wasm` - The vendored tokenizers build
 
 ### Local Development
 
-Simply open `index.html` in a modern web browser. No build step required.
+Serve the folder over HTTP (e.g. `python3 -m http.server`) and open `index.html`. Module workers and WebAssembly don't load from `file://`. No build step required.
 
 ### Dependencies
 
-- [transformers.js](https://huggingface.co/docs/transformers.js) - Loaded as an ES module for client-side tokenization
+- [tokenizers](https://github.com/huggingface/tokenizers), compiled to WebAssembly and vendored. `scripts/tokenizers-wasm/build.sh` rebuilds it from a pinned commit of [daaain/tokenizers@claude/wasm-integration](https://github.com/daaain/tokenizers/tree/claude/wasm-integration): the upstream wasm binding (huggingface/tokenizers#2450) plus fixes still in review upstream. `scripts/tokenizers-wasm/parity.mjs` checks a build against transformers.js. Once the binding is released, this can switch to the published package
 
 ## Browser Compatibility
 
 Works in all modern browsers that support:
-- ES6 modules
+- ES6 modules, including module Web Workers
+- WebAssembly
 - Async/await
 - LocalStorage
 - Clipboard API (for share functionality)

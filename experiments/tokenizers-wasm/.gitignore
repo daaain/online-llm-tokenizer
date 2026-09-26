@@ -1,7 +1,0 @@
-target/
-vendor/
-bench/models/
-bench/pkg-*/
-bench/node_modules/
-bench/text.txt
-bench/transformers.js

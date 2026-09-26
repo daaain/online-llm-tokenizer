@@ -371,6 +371,8 @@ textarea#textInput {
   min-height: 5em;
   padding: 0;
   overflow-y: hidden;
+  /* Grows with its text; tokenizer.js resizes it by hand where this isn't supported */
+  field-sizing: content;
   resize: none;
   background: transparent;
   color: var(--ink);
@@ -651,6 +653,30 @@ ul#models {
   font-size: 0.6875rem;
   color: var(--muted);
   padding-top: 6px;
+}
+
+.clean-up-toggle {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.clean-up-toggle input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--ink);
+  cursor: pointer;
+}
+
+.clean-up-toggle input:focus-visible {
+  outline: 2px solid var(--link-hover);
+  outline-offset: 2px;
 }
 
 /* Add model */

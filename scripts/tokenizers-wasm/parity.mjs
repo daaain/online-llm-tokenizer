@@ -1,12 +1,13 @@
-// Compares the wasm binding built from daaain/tokenizers@claude/wasm-integration with transformers.js:
-// token ids and per-token text for the 14 models in fetch-models.sh. Build it into pkg-integration/ with
-// wasm-bindgen --target nodejs --out-dir pkg-integration <path to tokenizers_wasm.wasm>
+// Checks the tokenizers build against transformers.js: token ids and per-token text for the models in
+// fetch-models.sh. Run ./build.sh, then:
+//   wasm-bindgen --target nodejs --out-dir pkg-node tokenizers/bindings/wasm/target/wasm32-unknown-unknown/release/tokenizers_wasm.wasm
+//   ./fetch-models.sh && npm install && node parity.mjs
 import fs from 'node:fs'
 import { performance } from 'node:perf_hooks'
 import { createRequire } from 'node:module'
 const require = createRequire(import.meta.url)
 import { AutoTokenizer, env } from '@huggingface/transformers'
-const { Tokenizer } = require('./pkg-integration/tokenizers_wasm.js')
+const { Tokenizer } = require('./pkg-node/tokenizers_wasm.js')
 
 env.localModelPath = './models/'
 env.allowRemoteModels = false

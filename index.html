@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <title>LLM Tokenizer</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="A pure Javascript LLM tokenizer running in your browser using Transformers.js">
+    <meta name="description" content="An LLM tokenizer running in your browser: Hugging Face's Rust tokenizers compiled to WebAssembly">
     <link rel="icon" type="image/svg+xml" href="favicons/token.svg" />
     <link rel="preload" href="fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link href="tokenizer.css" rel="stylesheet">
@@ -43,7 +43,7 @@
                 </span>
             </h1>
             <div class="intro">
-                <p class="intro-lead">A pure JavaScript tokenizer running in your browser. Count tokens and compare how
+                <p class="intro-lead">A tokenizer running entirely in your browser. Count tokens and compare how
                     different large language model vocabularies split the same text.</p>
                 <p class="intro-note">Above: the same five pieces in three vocabularies, with a different ID every time.<br/>
                     Below: loads <code>tokenizer.json</code> and <code>tokenizer_config.json</code> from any repository on
@@ -102,6 +102,7 @@ Do you spit at people?[/INST]</textarea>
                     <li><strong>Newlines:</strong> Tokens containing a line break are shown with a ↵ symbol</li>
                     <li><strong>Model comparison:</strong> Compare how different models tokenize the same text - click a name in the token count list to jump to its card</li>
                     <li><strong>Keyboard shortcuts:</strong> Press Enter in the "Add from Hugging Face" field to quickly add new tokenizers</li>
+                    <li><strong>Clean-up:</strong> Tokens show their exact text, so <code>" ."</code> keeps its space. Tick "Clean up spaces before punctuation" on a card to see it the way the model's decoder would tidy it (<code>"."</code>, <code>"don't"</code>), next to that model's own default. Only the text changes, never the IDs or the count</li>
                     <li><strong>Error recovery:</strong> Failed models show detailed error messages but don't break the application</li>
                     <li><strong>Mobile usage:</strong> Fully functional on mobile devices with responsive design adaptations</li>
                     <li><strong>Offline capability:</strong> Once models are loaded, tokenization works completely offline</li>
@@ -111,15 +112,15 @@ Do you spit at people?[/INST]</textarea>
             <details class="card">
                 <summary>Implementation details<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></summary>
                 <ul>
-                    <li><strong>Parallel model loading:</strong> All tokenizers load simultaneously using <code>Promise.all()</code> instead of sequentially, to improve startup time</li>
+                    <li><strong>Rust tokenizers in WebAssembly:</strong> Tokenization uses Hugging Face's <a href="https://github.com/huggingface/tokenizers">tokenizers</a> library compiled to WebAssembly, the same code that runs in Python and Rust</li>
+                    <li><strong>Web Workers:</strong> Each tokenizer loads and runs in its own worker, in parallel and off the main thread, so typing stays smooth. The WebAssembly module is compiled once and shared</li>
                     <li><strong>Progressive rendering:</strong> Models appear and update individually as they finish loading, providing immediate feedback</li>
-                    <li><strong>Debounced input processing:</strong> Text changes are debounced by 300ms to prevent excessive re-tokenization during typing</li>
-                    <li><strong>Client-side tokenization:</strong> Uses transformers.js for pure browser-based tokenization without server dependencies</li>
+                    <li><strong>Debounced input processing:</strong> Text changes are debounced by 300ms to prevent excessive re-tokenization during typing, and results for text that has since changed are dropped</li>
                     <li><strong>Ruby annotations:</strong> Tokens are displayed using HTML <code>&lt;ruby&gt;</code> elements with text above and token numbers below</li>
                     <li><strong>Space preservation:</strong> Automatically detects and removes tokenizer space-stripping to accurately show whitespace tokens</li>
                     <li><strong>URL parameter support:</strong> Share configurations via <code>?text=...&amp;models=...</code> for easy collaboration</li>
                     <li><strong>LocalStorage persistence:</strong> Model lists persist across browser sessions with automatic fallback to defaults</li>
-                    <li><strong>Memory management:</strong> Models are cached in memory and only loaded once, with cleanup on deletion</li>
+                    <li><strong>Caching:</strong> Tokenizer files are kept with the Cache API, so reloading the page doesn't download them again. Deleting a model stops its worker</li>
                     <li><strong>Dark mode support:</strong> Automatic theme detection with appropriate colour schemes for all UI elements</li>
                 </ul>
             </details>
