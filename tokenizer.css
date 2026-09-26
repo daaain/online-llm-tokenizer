@@ -32,6 +32,7 @@
   --track: #eceaf2;
   --link-hover: #732982;
   --spectrum-end: #d9d6e2;
+  --sheen: rgba(22, 20, 29, 0.35);
   --token-mix: 40%;
   --token-edge: rgba(22, 20, 29, 0.07);
   --error: #b3261e;
@@ -54,6 +55,7 @@
     --track: #24212d;
     --link-hover: #c9a2ec;
     --spectrum-end: #efedf7;
+    --sheen: rgba(239, 237, 247, 0.45);
     --token-mix: 50%;
     --token-edge: rgba(239, 237, 247, 0.08);
     --error: #ffb4ab;
@@ -116,12 +118,25 @@ code {
 
 .page {
   box-sizing: border-box;
-  max-width: 1280px;
-  margin: 0 auto;
   padding: 32px clamp(16px, 6vw, 80px) 80px;
   display: flex;
   flex-direction: column;
   gap: 48px;
+}
+
+/* Everything keeps a readable width, apart from the model cards, which fill wide screens with more columns */
+.page > * {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1120px;
+  margin-inline: auto;
+}
+
+/* Once a third 34rem column fits */
+@media (min-width: 115rem) {
+  .page > ul#models {
+    max-width: none;
+  }
 }
 
 .card {
@@ -369,8 +384,10 @@ textarea#textInput {
   box-sizing: border-box;
   width: 100%;
   min-height: 5em;
+  /* Long texts scroll inside, so the tokens stay close by */
+  max-height: 40vh;
   padding: 0;
-  overflow-y: hidden;
+  overflow-y: auto;
   /* Grows with its text; tokenizer.js resizes it by hand where this isn't supported */
   field-sizing: content;
   resize: none;
@@ -396,25 +413,32 @@ textarea#textInput {
   gap: 16px;
 }
 
+/* The rows share one grid, so the count column fits the longest count and the bars keep the same scale */
 #counts {
-  margin: 0;
+  margin: 0 -12px;
   padding: 0;
   list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  display: grid;
+  grid-template-columns: minmax(0, 21rem) minmax(0, 1fr) max-content;
+  gap: 4px 24px;
+}
+
+#counts li {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
 }
 
 #counts a,
 #counts .count-row {
   display: grid;
-  grid-template-columns: minmax(0, 21rem) minmax(0, 1fr) 4rem;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
   grid-template-areas: 'name bar count';
-  gap: 8px 24px;
+  row-gap: 8px;
   align-items: center;
   min-height: 44px;
   padding: 0 12px;
-  margin: 0 -12px;
   border-radius: 12px;
 }
 
@@ -439,6 +463,8 @@ textarea#textInput {
 
 .count-bar {
   grid-area: bar;
+  position: relative;
+  overflow: hidden;
   height: 14px;
   border-radius: 999px;
   background: var(--track);
@@ -449,7 +475,9 @@ textarea#textInput {
   height: 100%;
   border-radius: 999px;
   background: var(--ink);
-  transition: width 0.3s ease-out;
+  transition:
+    width 0.3s ease-out,
+    opacity 0.2s;
 }
 
 .count-bar.pending {
@@ -475,31 +503,67 @@ textarea#textInput {
   color: var(--error);
 }
 
+/* While a model re-tokenises, its old count fades and a sheen sweeps along the bar */
+.count-value {
+  transition: opacity 0.2s;
+}
+
+#counts .processing .count-bar > span,
+#counts .processing .count-value {
+  opacity: 0.4;
+}
+
+#counts .processing .count-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--sheen), transparent);
+  animation: sweep 1.1s ease-in-out infinite;
+}
+
+@keyframes sweep {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #counts .processing .count-bar::after {
+    animation: none;
+    display: none;
+  }
+
+  .count-bar > span {
+    transition: opacity 0.2s;
+  }
+}
+
 @media (max-width: 720px) {
+  #counts {
+    grid-template-columns: minmax(0, 1fr) max-content;
+  }
+
   #counts a,
   #counts .count-row {
-    grid-template-columns: minmax(0, 1fr) 4rem;
     grid-template-areas: 'name count' 'bar bar';
     padding: 8px 12px;
   }
 }
 
-/* Model cards: one column, two on wide screens */
+/* Model cards: as many columns as fit, each at least 34rem wide */
 
 ul#models {
   margin: 0;
   padding: 0;
   list-style: none;
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 34rem), 1fr));
   gap: 24px;
   align-items: start;
-}
-
-@media (min-width: 1280px) {
-  ul#models {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 .model-card {
@@ -531,12 +595,15 @@ ul#models {
 
 .model-header {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
 }
 
+/* On narrow cards the count moves below the name rather than squeezing it to a few letters per line */
 .model-name {
+  flex: 1 1 10rem;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -560,6 +627,7 @@ ul#models {
   align-items: baseline;
   gap: 12px;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 /* Each card's remove button hovers in the next colour of the spectrum */
@@ -587,7 +655,7 @@ ul#models {
 .model-count strong {
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 2.75rem;
+  font-size: clamp(2.25rem, 1.5rem + 2.5vw, 2.75rem);
   line-height: 1;
 }
 
@@ -631,15 +699,21 @@ ul#models {
 .tokens {
   line-height: 3;
   overflow-wrap: anywhere;
+  tab-size: 2;
 }
 
+/* A column rather than ruby layout: Firefox takes ~40x longer to lay out thousands of rubies with preserved spaces */
 .tokens ruby {
-  ruby-position: under;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  vertical-align: top;
+  margin: 7px 3px 7px 0;
   white-space: pre;
-  margin-right: 3px;
 }
 
 .tokens ruby > span {
+  line-height: 1.3;
   font-family: var(--font-mono);
   font-size: clamp(1.125rem, 1rem + 0.4vw, 1.375rem);
   padding: 4px 3px;
@@ -649,6 +723,9 @@ ul#models {
 }
 
 .tokens rt {
+  display: block;
+  margin-top: -5px;
+  line-height: 1.3;
   font-family: var(--font-mono);
   font-size: 0.6875rem;
   color: var(--muted);
