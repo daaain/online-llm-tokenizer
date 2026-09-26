@@ -401,6 +401,15 @@ function updateSingleModel(modelName) {
       .join('<wbr>')
 
     tokenCounts[modelName] = tokens.length
+    const tokensElement = modelElement.querySelector('.tokens')
+    if (tokensElement) {
+      // Swap just the tokens and the count. Re-creating the clean-up checkbox made password managers
+      // (e.g. KeePassXC-Browser) check whether it's visible, forcing a layout of every token on each update
+      modelElement.querySelector('.model-count strong').textContent = tokens.length
+      tokensElement.outerHTML = `<div class="tokens">${textFromTokens}</div>`
+      renderCounts()
+      return
+    }
     modelElement.innerHTML = `
       ${renderModelHeader(
         modelName,
