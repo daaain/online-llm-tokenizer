@@ -433,6 +433,9 @@ function updateSingleModel(modelName) {
   renderCounts()
 }
 
+/**
+ * An empty row for the token count overview, filled in by renderCounts
+ */
 function renderCountRow(modelName) {
   const { org, repo } = splitModelName(modelName)
   return `

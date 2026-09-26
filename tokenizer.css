@@ -536,6 +536,10 @@ textarea#textInput {
     animation: none;
     display: none;
   }
+
+  .count-bar > span {
+    transition: opacity 0.2s;
+  }
 }
 
 @media (max-width: 720px) {
