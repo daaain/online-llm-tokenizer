@@ -132,12 +132,6 @@ code {
   margin-inline: auto;
 }
 
-/* Once a third 34rem column fits */
-@media (min-width: 115rem) {
-  .page > ul#models {
-    max-width: none;
-  }
-}
 
 .card {
   background: var(--card);
@@ -554,14 +548,15 @@ textarea#textInput {
   }
 }
 
-/* Model cards: as many columns as fit, each at least 34rem wide */
+/* Model cards: fill the page's full width with as many 29.5rem+ columns as fit (two from a 1100px viewport) */
 
 ul#models {
+  max-width: none;
   margin: 0;
   padding: 0;
   list-style: none;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 34rem), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 29.5rem), 1fr));
   gap: 24px;
   align-items: start;
 }
