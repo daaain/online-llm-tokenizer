@@ -551,6 +551,25 @@ textarea#textInput {
 
 /* Model cards: fill the page's full width with as many 29.5rem+ columns as fit (two from a 1100px viewport) */
 
+.page > .models {
+  max-width: none;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Sticks to the bottom right while the cards are in view, hidden above them and settling below the last one */
+.to-counts {
+  position: sticky;
+  bottom: 16px;
+  align-self: flex-end;
+  margin-top: 16px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+
+.counts {
+  scroll-margin-top: 16px;
+}
+
 ul#models {
   max-width: none;
   margin: 0;
@@ -567,7 +586,9 @@ ul#models {
   flex-direction: column;
   gap: 16px;
   padding: 24px clamp(20px, 3vw, 28px) 28px;
-  scroll-margin-top: 24px;
+  /* Less than the grid gap, so the row above is fully out of view and can't become the scroll anchor:
+     its cards are re-rendered as their tokens arrive, which loses the anchor and lets this card drift away */
+  scroll-margin-top: 16px;
 }
 
 .model-card:target {

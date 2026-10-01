@@ -561,4 +561,7 @@ shareBtn.addEventListener('click', () => {
     })
 })
 
-await loadTokenizers()
+const loadingTokenizers = loadTokenizers()
+// The cards didn't exist yet when the browser looked for a linked #model-… card, so Chrome and Safari never scrolled to it
+if (location.hash) location.replace(location.hash)
+await loadingTokenizers

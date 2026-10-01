@@ -72,12 +72,18 @@ Do you spit at people?[/INST]</textarea>
             </div>
         </section>
 
-        <section class="counts" aria-labelledby="countsTitle">
+        <section class="counts" id="token-count" aria-labelledby="countsTitle">
             <h2 class="section-title" id="countsTitle">Token count</h2>
             <ul id="counts"></ul>
         </section>
 
-        <ul id="models"></ul>
+        <div class="models">
+            <ul id="models"></ul>
+            <a class="btn to-counts" href="#token-count">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"></path></svg>
+                All models
+            </a>
+        </div>
 
         <form id="addModel" class="add-model">
             <label for="addModelInput">Add from Hugging Face</label>
@@ -100,7 +106,7 @@ Do you spit at people?[/INST]</textarea>
                     <li><strong>Reading tokens:</strong> Each word/subword piece shows the original text above and the token number below</li>
                     <li><strong>Token colours:</strong> Different background colours help distinguish adjacent tokens, cycling through 10 colours</li>
                     <li><strong>Newlines:</strong> Tokens containing a line break are shown with a ↵ symbol</li>
-                    <li><strong>Model comparison:</strong> Compare how different models tokenize the same text - click a name in the token count list to jump to its card</li>
+                    <li><strong>Model comparison:</strong> Compare how different models tokenize the same text - click a name in the token count list to jump to its card, and "All models" to come back</li>
                     <li><strong>Keyboard shortcuts:</strong> Press Enter in the "Add from Hugging Face" field to quickly add new tokenizers</li>
                     <li><strong>Clean-up:</strong> Tokens show their exact text, so <code>" ."</code> keeps its space. Tick "Clean up spaces before punctuation" on a card to see it the way the model's decoder would tidy it (<code>"."</code>, <code>"don't"</code>), next to that model's own default. Only the text changes, never the IDs or the count</li>
                     <li><strong>Error recovery:</strong> Failed models show detailed error messages but don't break the application</li>

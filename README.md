@@ -39,7 +39,7 @@ You can link directly to specific configurations using URL parameters:
 - Each word/subword piece shows the original text above and the token number below
 - Different background colours help distinguish adjacent tokens (cycling through 10 colours)
 - Newlines are preserved in the display, and tokens containing a line break show a ↵ symbol
-- The token count overview compares models at a glance; click a model name to jump to its card
+- The token count overview compares models at a glance; click a model name to jump to its card, and "All models" to come back
 - Tokens show their exact text (`" ."` keeps its space). A per-model "Clean up spaces before punctuation" switch shows the text as the model's decoder would tidy it, next to that model's own default. It never changes the IDs or the count
 
 ## Implementation Details
@@ -65,6 +65,16 @@ The project consists of these files:
 ### Local Development
 
 Serve the folder over HTTP (e.g. `python3 -m http.server`) and open `index.html`. Module workers and WebAssembly don't load from `file://`. No build step required.
+
+### Tests
+
+The browser tests use [Playwright](https://playwright.dev) and load real tokenizers from Hugging Face, so they need network access:
+
+```sh
+npm install
+npx playwright install chromium firefox webkit
+npm test
+```
 
 ### Dependencies
 
