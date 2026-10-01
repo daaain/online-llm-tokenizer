@@ -25,11 +25,11 @@ Click the bin button on any model card. You'll get a confirmation prompt and can
 
 ### Sharing Configurations
 
-Click "Copy share link" to copy a URL containing your current text and model selection. Share this URL with others to let them see the same tokenization.
+Click "Copy share link" to copy a URL containing your current text and model selection. Share this URL with others to let them see the same tokenization. The text is compressed into the fragment (`#text=...`), which browsers never send to the server, so even long texts make a working link.
 
 ### URL Parameters
 
-You can link directly to specific configurations using URL parameters:
+You can also write links to specific configurations by hand using URL parameters:
 ```
 ?text=your%20text&models=model1,model2,model3
 ```

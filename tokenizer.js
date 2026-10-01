@@ -179,11 +179,50 @@ const charCount = document.getElementById('charCount')
 
 const textInput = document.getElementById('textInput')
 
-// Load text from URL parameters if available
-const urlParams = new URLSearchParams(window.location.search)
-const urlText = urlParams.get('text')
-if (urlText) {
-  textInput.value = decodeURIComponent(urlText)
+/**
+ * Share links carry the text deflated and base64url-encoded in the fragment, which the browser never sends
+ * to the server, so long texts don't go over its URL length limit
+ */
+async function compressText(text) {
+  const stream = new Blob([text]).stream().pipeThrough(new CompressionStream('deflate-raw'))
+  const bytes = new Uint8Array(await new Response(stream).arrayBuffer())
+  const base64 = btoa(Array.from(bytes, (byte) => String.fromCharCode(byte)).join(''))
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+async function decompressText(encoded) {
+  const binary = atob(encoded.replace(/-/g, '+').replace(/_/g, '/'))
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0))
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'))
+  return new Response(stream).text()
+}
+
+/**
+ * The text from a share link: `#text=` with compressed text, or `?text=` from older links
+ */
+async function loadSharedText() {
+  const hashText = new URLSearchParams(location.hash.slice(1)).get('text')
+  if (hashText) {
+    try {
+      return await decompressText(hashText)
+    } catch (error) {
+      console.warn("Couldn't read the shared text from the link:", error)
+      return null
+    }
+  }
+  const queryText = new URLSearchParams(location.search).get('text')
+  if (!queryText) return null
+  // Older share links encoded the text twice, while a hand-written `?text=100%25` is only encoded once
+  try {
+    return decodeURIComponent(queryText)
+  } catch {
+    return queryText
+  }
+}
+
+const sharedText = await loadSharedText()
+if (sharedText) {
+  textInput.value = sharedText
 }
 
 let textInputContent = textInput.value
@@ -539,26 +578,31 @@ function showCopied() {
   }, COPIED_RESET_DELAY)
 }
 
-shareBtn.addEventListener('click', () => {
-  const currentUrl = new URL(window.location.href)
-  currentUrl.hash = ''
-  currentUrl.searchParams.set('text', encodeURIComponent(textInputContent))
-  currentUrl.searchParams.set('models', models.join(','))
+async function shareLink() {
+  const url = new URL(window.location.href)
+  url.searchParams.delete('text')
+  url.searchParams.set('models', models.join(','))
+  url.hash = `text=${await compressText(textInputContent)}`
+  return url.toString()
+}
 
-  navigator.clipboard
-    .writeText(currentUrl.toString())
-    .then(showCopied)
-    .catch((err) => {
-      console.error('Failed to copy URL:', err)
-      // Fallback: select the URL text
-      const textArea = document.createElement('textarea')
-      textArea.value = currentUrl.toString()
-      document.body.appendChild(textArea)
-      textArea.select()
-      document.execCommand('copy')
-      document.body.removeChild(textArea)
-      showCopied()
-    })
+shareBtn.addEventListener('click', async () => {
+  const link = shareLink()
+  try {
+    // Handing over a promise keeps the click's permission to copy while the text is compressed (Safari needs this)
+    const blob = link.then((url) => new Blob([url], { type: 'text/plain' }))
+    await navigator.clipboard.write([new ClipboardItem({ 'text/plain': blob })])
+  } catch (err) {
+    console.error('Failed to copy URL:', err)
+    // Fallback: select the URL text
+    const textArea = document.createElement('textarea')
+    textArea.value = await link
+    document.body.appendChild(textArea)
+    textArea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textArea)
+  }
+  showCopied()
 })
 
 const loadingTokenizers = loadTokenizers()
