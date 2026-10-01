@@ -1,6 +1,7 @@
 // Constants
 const KEY_MODELS = 'models'
 const KEY_CLEAN_UP = 'cleanUp'
+const KEY_TEXT = 'text'
 const DEBOUNCE_DELAY = 300 // ms
 const COPIED_RESET_DELAY = 2000 // ms
 const SKELETON_WIDTHS = [72, 120, 48, 96, 140, 64]
@@ -198,18 +199,23 @@ async function decompressText(encoded) {
 }
 
 /**
- * The text from a share link: `#text=` with compressed text, or `?text=` from older links
+ * The text from a share link's `#text=`
  */
-async function loadSharedText() {
-  const hashText = new URLSearchParams(location.hash.slice(1)).get('text')
-  if (hashText) {
-    try {
-      return await decompressText(hashText)
-    } catch (error) {
-      console.warn("Couldn't read the shared text from the link:", error)
-      return null
-    }
+async function textFromFragment() {
+  const encoded = new URLSearchParams(location.hash.slice(1)).get('text')
+  if (!encoded) return null
+  try {
+    return await decompressText(encoded)
+  } catch (error) {
+    console.warn("Couldn't read the shared text from the link:", error)
+    return null
   }
+}
+
+/**
+ * The text from `?text=`, as older share links and hand-written ones have it
+ */
+function textFromQuery() {
   const queryText = new URLSearchParams(location.search).get('text')
   if (!queryText) return null
   // Older share links encoded the text twice, while a hand-written `?text=100%25` is only encoded once
@@ -220,12 +226,35 @@ async function loadSharedText() {
   }
 }
 
-const sharedText = await loadSharedText()
-if (sharedText) {
-  textInput.value = sharedText
+/**
+ * The text in this tab survives a reload, but is forgotten with the tab, so pasted prompts don't stay around
+ */
+function loadTabText() {
+  try {
+    return sessionStorage.getItem(KEY_TEXT)
+  } catch {
+    return null
+  }
+}
+
+function saveTabText() {
+  try {
+    sessionStorage.setItem(KEY_TEXT, textInputContent)
+  } catch (error) {
+    console.warn("Couldn't keep the text for this tab:", error)
+  }
+}
+
+// Opening a link shows its text, while reloading or going back keeps what was typed in this tab since
+const openedLink = performance.getEntriesByType('navigation')[0]?.type === 'navigate'
+const sharedText = (await textFromFragment()) ?? textFromQuery()
+const startText = openedLink ? (sharedText ?? loadTabText()) : (loadTabText() ?? sharedText)
+if (startText !== null) {
+  textInput.value = startText
 }
 
 let textInputContent = textInput.value
+saveTabText()
 
 function resizeTextInput() {
   // Collapsing to measure forces a layout of every card, which is slow with a long text
@@ -254,11 +283,25 @@ function debounce(func, delay) {
 
 const debouncedUpdateTokens = debounce(updateTokens, DEBOUNCE_DELAY)
 
-textInput.addEventListener('input', (event) => {
+function textChanged() {
   resizeTextInput()
-  textInputContent = event.target.value
+  textInputContent = textInput.value
   updateCharCount()
+  saveTabText()
+}
+
+textInput.addEventListener('input', () => {
+  textChanged()
   debouncedUpdateTokens()
+})
+
+// A share link opened on the page only changes the fragment, so the browser doesn't load the page again
+addEventListener('hashchange', async () => {
+  const text = await textFromFragment()
+  if (text === null) return
+  textInput.value = text
+  textChanged()
+  updateTokens()
 })
 
 function renderModelHeader(modelName, meta = '') {
@@ -458,6 +501,7 @@ function updateSingleModel(modelName) {
       modelElement.querySelector('.model-count strong').textContent = tokens.length
       tokensElement.outerHTML = `<div class="tokens">${textFromTokens}</div>`
       renderCounts()
+      keepLinkedCardInView()
       return
     }
     modelElement.innerHTML = `
@@ -470,6 +514,7 @@ function updateSingleModel(modelName) {
     `
   }
   renderCounts()
+  keepLinkedCardInView()
 }
 
 /**
@@ -484,6 +529,31 @@ function renderCountRow(modelName) {
       <span></span>
     </a></li>`
 }
+
+/**
+ * Scroll anchoring keeps a linked card in place in most cases, but misses some loading orders and Safari has none.
+ * So until the reader scrolls for themselves, the jump is repeated whenever a card fills in, before it's painted
+ */
+let linkedCard = null
+
+function followLink() {
+  linkedCard = document.getElementById(location.hash.slice(1))
+}
+
+function keepLinkedCardInView() {
+  linkedCard?.scrollIntoView()
+}
+
+function letGoOfLinkedCard() {
+  linkedCard = null
+  document.documentElement.style.scrollBehavior = ''
+}
+
+for (const type of ['wheel', 'touchstart', 'keydown', 'pointerdown']) {
+  addEventListener(type, letGoOfLinkedCard, { passive: true })
+}
+// Clicking a name in the token count overview links to its card the same way
+addEventListener('hashchange', followLink)
 
 /**
  * Token count overview: each name links to its model card, bars are relative to the largest count.
@@ -606,6 +676,11 @@ shareBtn.addEventListener('click', async () => {
 })
 
 const loadingTokenizers = loadTokenizers()
-// The cards didn't exist yet when the browser looked for a linked #model-… card, so Chrome and Safari never scrolled to it
-if (location.hash) location.replace(location.hash)
+// The cards didn't exist yet when the browser looked for a linked #model-… card, so Chrome and Safari never scrolled to it.
+// Until the reader takes over, it jumps rather than glides, as a glide is thrown off by the cards filling in around it
+followLink()
+if (linkedCard) {
+  document.documentElement.style.scrollBehavior = 'auto'
+  location.replace(location.hash)
+}
 await loadingTokenizers

@@ -102,7 +102,7 @@ Do you spit at people?[/INST]</textarea>
                     <li><strong>Deleting models:</strong> Click the bin button on any model card. You'll get a confirmation prompt and cannot delete the last model</li>
                     <li><strong>Sharing configurations:</strong> Click "Copy share link" to copy a URL containing your current text and model selection. The text is compressed into the part after the <code>#</code>, so even long texts make a working link</li>
                     <li><strong>URL parameters:</strong> Write links by hand using the <code>?text=your%20text&amp;models=model1,model2,model3</code> format</li>
-                    <li><strong>Text input:</strong> Type or paste text into the text box - tokenization happens automatically with a short delay</li>
+                    <li><strong>Text input:</strong> Type or paste text into the text box - tokenization happens automatically with a short delay. The text is kept when you reload, until you close the tab</li>
                     <li><strong>Reading tokens:</strong> Each word/subword piece shows the original text above and the token number below</li>
                     <li><strong>Token colours:</strong> Different background colours help distinguish adjacent tokens, cycling through 10 colours</li>
                     <li><strong>Newlines:</strong> Tokens containing a line break are shown with a ↵ symbol</li>
@@ -125,7 +125,7 @@ Do you spit at people?[/INST]</textarea>
                     <li><strong>Ruby annotations:</strong> Tokens are displayed using HTML <code>&lt;ruby&gt;</code> elements with text above and token numbers below</li>
                     <li><strong>Space preservation:</strong> Automatically detects and removes tokenizer space-stripping to accurately show whitespace tokens</li>
                     <li><strong>Share links:</strong> The text is compressed with <code>CompressionStream('deflate-raw')</code> into <code>#text=...</code>, which browsers never send to the server, so links don't run into its URL length limit. <code>?text=...&amp;models=...</code> also works</li>
-                    <li><strong>LocalStorage persistence:</strong> Model lists persist across browser sessions with automatic fallback to defaults</li>
+                    <li><strong>Storage:</strong> Model lists persist across browser sessions in localStorage with automatic fallback to defaults. The text is kept in sessionStorage, so it survives a reload but not closing the tab</li>
                     <li><strong>Caching:</strong> Tokenizer files are kept with the Cache API, so reloading the page doesn't download them again. Deleting a model stops its worker</li>
                     <li><strong>Dark mode support:</strong> Automatic theme detection with appropriate colour schemes for all UI elements</li>
                 </ul>

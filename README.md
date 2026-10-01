@@ -8,7 +8,7 @@ A tokenizer running entirely in your browser that can load `tokenizer.json` and 
 - **Compare models**: Load multiple tokenizers simultaneously to see how different models tokenize the same text
 - **Visual token display**: Each token is displayed with its original text and token ID using colour-coded backgrounds
 - **Share configurations**: Generate shareable URLs with your text and model selection
-- **Persistent settings**: Model lists are saved in localStorage across browser sessions
+- **Persistent settings**: Model lists are saved in localStorage across browser sessions, and the text survives a reload until the tab is closed
 - **HuggingFace integration**: Load any tokenizer directly from HuggingFace Hub
 - **Dark mode support**: Automatic theme detection with appropriate colour schemes
 - **Offline capability**: Once models are loaded, tokenization works completely offline
@@ -68,7 +68,7 @@ Serve the folder over HTTP (e.g. `python3 -m http.server`) and open `index.html`
 
 ### Tests
 
-The browser tests use [Playwright](https://playwright.dev) and load real tokenizers from Hugging Face, so they need network access:
+The browser tests use [Playwright](https://playwright.dev). They stand in for the Hub with a tiny tokenizer that each test releases in the order it chooses (`tests/hub.js`), so they run offline, apart from `tests/huggingface.spec.js`, which loads a real tokenizer:
 
 ```sh
 npm install

@@ -2,12 +2,10 @@ import { defineConfig, devices } from '@playwright/test'
 
 const PORT = Number(process.env.PORT ?? 4173)
 
-// The tests load real tokenizers from Hugging Face, so they need network access
+// Apart from huggingface.spec.js, the tests stand in for the Hub (see tests/hub.js), so they run offline
 export default defineConfig({
   testDir: 'tests',
   timeout: 60_000,
-  // A slow or failed answer from the Hub shows up as flaky rather than failing the run
-  retries: 1,
   use: {
     baseURL: `http://localhost:${PORT}/`,
     viewport: { width: 1280, height: 800 },
