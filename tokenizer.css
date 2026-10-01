@@ -390,7 +390,8 @@ textarea#textInput {
   border: 0;
   outline: none;
   font-family: var(--font-mono);
-  font-size: clamp(1rem, 0.8rem + 0.8vw, 1.375rem);
+  /* Not below 16px, or iOS zooms in on focus */
+  font-size: 1rem;
   line-height: 1.55;
 }
 
@@ -692,7 +693,8 @@ ul#models {
 /* Tokens: text above, token ID below */
 
 .tokens {
-  line-height: 3;
+  /* Sets the height of the empty lines that blank lines in the text leave */
+  line-height: 1.5;
   overflow-wrap: anywhere;
   tab-size: 2;
 }
@@ -703,15 +705,15 @@ ul#models {
   flex-direction: column;
   align-items: center;
   vertical-align: top;
-  margin: 7px 3px 7px 0;
+  margin: 2px 3px 2px 0;
   white-space: pre;
 }
 
 .tokens ruby > span {
   line-height: 1.3;
   font-family: var(--font-mono);
-  font-size: clamp(1.125rem, 1rem + 0.4vw, 1.375rem);
-  padding: 4px 3px;
+  font-size: clamp(0.875rem, 0.75rem + 0.3vw, 1rem);
+  padding: 3px;
   border-radius: 6px;
   background: color-mix(in srgb, var(--c) var(--token-mix), transparent);
   box-shadow: inset 0 0 0 1px var(--token-edge);
